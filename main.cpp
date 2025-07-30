@@ -1,6 +1,9 @@
 #include "ctre/phoenix6/TalonFX.hpp"
+#include "ctre/phoenix6/CANCoder.hpp"
 #include "RobotBase.hpp"
 #include "Joystick.hpp"
+#include <cmath>
+#include "pid.h"
 
 using namespace ctre::phoenix6;
 
@@ -10,17 +13,22 @@ using namespace ctre::phoenix6;
  */
 class Robot : public RobotBase {
 private:
+    double deadZone = 75.0 / 180.0 * 3.14159; // 75 degrees in radians of absolute deadzone at directly backwards
+    double encoderOffset = 0.0 * 2.0 * 3.14159; // 0 degrees in radians
+    PID myPID = new PID(0.02, 1.0, -1.0, 0.1, 0.01, 0.01);
     /* This can be a CANivore name, CANivore serial number,
      * SocketCAN interface, or "*" to select any CANivore. */
     static constexpr char const *CANBUS_NAME = "*";
 
     /* devices */
     hardware::TalonFX left{13, CANBUS_NAME};
-    // hardware::TalonFX right{5, CANBUS_NAME};
+    hardware::TalonFX right{14, CANBUS_NAME};
+
+    hardware::CANCoder encoder{22, CANBUS_NAME};
 
     /* control requests */
     controls::DutyCycleOut leftOut{0};
-    // controls::DutyCycleOut rightOut{0};
+    controls::DutyCycleOut rightOut{0};
 
     /* joystick */
     Joystick joy{0};
@@ -93,14 +101,40 @@ void Robot::EnabledPeriodic()
     /* arcade drive */
     // double speed = -joy.GetAxis(1); // SDL_CONTROLLER_AXIS_LEFTY
     // double turn = joy.GetAxis(4); // SDL_CONTROLLER_AXIS_RIGHTX
+    double targetAngle = std::atan2(joy.GetAxis(1),joy.GetAxis(2)); //radians -pi to pi
+    double currentAngle = (encoder::GetPosition()::GetValue() * 2.0 * 3.14159) - encoderOffset; // radians 0 to 2pi
+    bool backwards = false;
 
-    double speed = 0.5;
+    // optimize shortspin
+    while (targetAngle - currentAngle > 3.14159 * 0.5) {
+        targetAngle -= 3.14159;
+        backwards = !backwards;
+    }
+    while (targetAngle - currentAngle < -3.14159 * 0.5) {
+        targetAngle += 3.14159;
+        backwards = !backwards;
+    }
 
-    leftOut.Output = speed;
-    // rightOut.Output = -speed;
+    // limit the target angle to within the operating zone
+    double positiveLimit = 3.14159 - deadZone; // 180 degrees in radians minus deadzone
+    double negativeLimit = -3.14159 + deadZone; // -180 degrees in radians plus deadzone
+    if (targetAngle > positiveLimit) {
+        targetAngle -= 3.14159; 
+        backwards = !backwards; // flip direction
+    } else if (targetAngle < negativeLimit) {
+        targetAngle += 3.14159; 
+        backwards = !backwards; // flip direction
+    }
+
+
+    double speed = joy.GetAxis(4) * (backwards ? -1 : 1);
+    double turnSpeed = myPID.calculate(targetAngle, currentAngle);
+
+    leftOut.Output = speed - turnSpeed;
+    rightOut.Output = speed + turnSpeed;
 
     left.SetControl(leftOut);
-    // right.SetControl(rightOut);
+    right.SetControl(rightOut);
 }
 
 /**
