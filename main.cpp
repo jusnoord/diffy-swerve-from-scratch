@@ -3,6 +3,7 @@
 #include "RobotBase.hpp"
 #include "utils/Joystick.hpp"
 #include "utils/pid.h"
+#include "utils/Teleplot.h"
 #include <cmath>
 
 using namespace ctre::phoenix6;
@@ -43,6 +44,7 @@ private:
     Joystick joy{0};
 
     bool joystickToggled = false;
+    Teleplot teleplot = Teleplot("127.0.0.1", 47269);
 
 public:
     /* main robot interface */
@@ -162,7 +164,12 @@ void Robot::EnabledPeriodic()
     double speed = joy.GetAxis(4) * (backwards ? -1 : 1);
     double turnSpeed = myPID.calculate(targetAngle, currentAngle);
 
-    cout << "encoder: " << encoder.GetPosition().GetValueAsDouble() << "       " << "turnspeed:" << turnSpeed << "       " << "targetAngle: " << targetAngle << "       " << "currentAngle: " << currentAngle << endl;
+    // cout << "encoder: " << encoder.GetPosition().GetValueAsDouble() << "       " << "turnspeed:" << turnSpeed << "       " << "targetAngle: " << targetAngle << "       " << "currentAngle: " << currentAngle << endl;
+
+    teleplot.update("encoder", encoder.GetPosition().GetValueAsDouble(), "rotations");
+    teleplot.update("targetAngle", targetAngle, "rad");
+    teleplot.update("currentAngle", currentAngle, "rad");
+    teleplot.update("turnSpeed", turnSpeed, "%");
     // cout << "joystick 1  " << joy.GetAxis(1) << "       "
     //      << "joystick 0  " << joy.GetAxis(0) << "       "
     //      << atan2(joy.GetAxis(0), -joy.GetAxis(1)) << endl;

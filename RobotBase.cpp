@@ -46,10 +46,11 @@ int RobotBase::Run()
         /* yield for the remainder of the loop time */
         units::millisecond_t const dtMs{std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0};
 
-        char input;
-        std::cin>>input;
-        if (input=='f')
-        {return 0;}
+        // char input;
+        // std::cin>>input;
+        // if (input=='f')
+        // {return 0;}
+
         if (dtMs < _loopTime) {
             SleepFor(_loopTime - dtMs);
         } else {
