@@ -1,21 +1,30 @@
 #include "ctre/phoenix6/TalonFX.hpp"
-#include "ctre/phoenix6/CANCoder.hpp"
+#include "ctre/phoenix6/CANcoder.hpp"
 #include "RobotBase.hpp"
-#include "Joystick.hpp"
+#include "utils/Joystick.hpp"
+#include "utils/pid.h"
 #include <cmath>
-#include "pid.h"
 
 using namespace ctre::phoenix6;
-
+using namespace std;
+#include <chrono>
 /**
  * This is the main robot. Put all actuators, sensors,
  * game controllers, etc. in this class.
  */
+
+// Returns milliseconds since program start
+uint32_t millis() {
+    static auto start = std::chrono::steady_clock::now();
+    auto now = std::chrono::steady_clock::now();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
+}
+
 class Robot : public RobotBase {
 private:
     double deadZone = 75.0 / 180.0 * 3.14159; // 75 degrees in radians of absolute deadzone at directly backwards
     double encoderOffset = 0.0 * 2.0 * 3.14159; // 0 degrees in radians
-    PID myPID = new PID(0.02, 1.0, -1.0, 0.1, 0.01, 0.01);
+    PID myPID{0.02, 1.0, -1.0, 0.02, 0.0, 0.0};
     /* This can be a CANivore name, CANivore serial number,
      * SocketCAN interface, or "*" to select any CANivore. */
     static constexpr char const *CANBUS_NAME = "*";
@@ -24,7 +33,7 @@ private:
     hardware::TalonFX left{13, CANBUS_NAME};
     hardware::TalonFX right{14, CANBUS_NAME};
 
-    hardware::CANCoder encoder{22, CANBUS_NAME};
+    hardware::CANcoder encoder{22, CANBUS_NAME};
 
     /* control requests */
     controls::DutyCycleOut leftOut{0};
@@ -32,6 +41,8 @@ private:
 
     /* joystick */
     Joystick joy{0};
+
+    bool joystickToggled = false;
 
 public:
     /* main robot interface */
@@ -72,7 +83,8 @@ void Robot::RobotInit()
 void Robot::RobotPeriodic()
 {
     /* periodically check that the joystick is still good */
-    // joy.Periodic();
+    joy.Periodic();
+
 }
 
 /**
@@ -83,9 +95,23 @@ bool Robot::IsEnabled()
     /* enable while joystick is an Xbox controller (6 axes),
      * and we are holding the right bumper */
     // if (joy.GetNumAxes() < 6) return false;
-    // return joy.GetButton(5); // SDL_CONTROLLER_BUTTON_RIGHTSHOULDER
 
-    return true;
+    //toggle enable state with a debounce
+    static bool lastButtonState = false;
+    static bool enabled = false;
+    static uint32_t lastToggleTime = 0;
+    const uint32_t debounceDelay = 200; // milliseconds
+
+    bool currentButtonState = joy.GetButton(5); // Right bumper
+    uint32_t now = millis();
+
+    if (currentButtonState && !lastButtonState && (now - lastToggleTime > debounceDelay)) {
+        enabled = !enabled;
+        lastToggleTime = now;
+    }
+    lastButtonState = currentButtonState;
+
+    return enabled;
 }
 
 /**
@@ -101,8 +127,13 @@ void Robot::EnabledPeriodic()
     /* arcade drive */
     // double speed = -joy.GetAxis(1); // SDL_CONTROLLER_AXIS_LEFTY
     // double turn = joy.GetAxis(4); // SDL_CONTROLLER_AXIS_RIGHTX
-    double targetAngle = std::atan2(joy.GetAxis(1),joy.GetAxis(2)); //radians -pi to pi
-    double currentAngle = (encoder::GetPosition()::GetValue() * 2.0 * 3.14159) - encoderOffset; // radians 0 to 2pi
+    double targetAngle = atan2(joy.GetAxis(0), -joy.GetAxis(1)); //radians -pi to pi
+    double currentAngle = fmod((encoder.GetPosition().GetValueAsDouble() * 2.0 * 3.14159) - encoderOffset, 2.0 * 3.14159); // radians 0 to 2pi
+    if (currentAngle < -3.14159) {
+        currentAngle += 2.0 * 3.14159; // ensure currentAngle is between -3.14 and 3.14
+    } else if (currentAngle > 3.14159) {
+        currentAngle -= 2.0 * 3.14159; 
+    }
     bool backwards = false;
 
     // optimize shortspin
@@ -118,10 +149,11 @@ void Robot::EnabledPeriodic()
     // limit the target angle to within the operating zone
     double positiveLimit = 3.14159 - deadZone; // 180 degrees in radians minus deadzone
     double negativeLimit = -3.14159 + deadZone; // -180 degrees in radians plus deadzone
-    if (targetAngle > positiveLimit) {
+    while (targetAngle > positiveLimit) {
         targetAngle -= 3.14159; 
         backwards = !backwards; // flip direction
-    } else if (targetAngle < negativeLimit) {
+    } 
+    while (targetAngle < negativeLimit) {
         targetAngle += 3.14159; 
         backwards = !backwards; // flip direction
     }
@@ -130,11 +162,15 @@ void Robot::EnabledPeriodic()
     double speed = joy.GetAxis(4) * (backwards ? -1 : 1);
     double turnSpeed = myPID.calculate(targetAngle, currentAngle);
 
-    leftOut.Output = speed - turnSpeed;
-    rightOut.Output = speed + turnSpeed;
+    cout << "encoder: " << encoder.GetPosition().GetValueAsDouble() << "       " << "turnspeed:" << turnSpeed << "       " << "targetAngle: " << targetAngle << "       " << "currentAngle: " << currentAngle << endl;
+    // cout << "joystick 1  " << joy.GetAxis(1) << "       "
+    //      << "joystick 0  " << joy.GetAxis(0) << "       "
+    //      << atan2(joy.GetAxis(0), -joy.GetAxis(1)) << endl;
+    // leftOut.Output = speed - turnSpeed;
+    // rightOut.Output = speed + turnSpeed;
 
-    left.SetControl(leftOut);
-    right.SetControl(rightOut);
+    // left.SetControl(leftOut);
+    // right.SetControl(rightOut);
 }
 
 /**
