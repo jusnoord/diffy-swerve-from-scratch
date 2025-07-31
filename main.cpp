@@ -1,4 +1,4 @@
-#include "ctre/phoenix6/TalonFX.hpp"
+#include "ctre/phoenix6/TalonFXS.hpp"
 #include "ctre/phoenix6/CANcoder.hpp"
 #include "RobotBase.hpp"
 #include "utils/Joystick.hpp"
@@ -23,16 +23,18 @@ uint32_t millis() {
 
 class Robot : public RobotBase {
 private:
-    double deadZone = 75.0 / 180.0 * 3.14159; // 75 degrees in radians of absolute deadzone at directly backwards
-    double encoderOffset = 0.0 * 2.0 * 3.14159; // 0 degrees in radians
-    PID myPID{0.02, 1.0, -1.0, 0.02, 0.0, 0.0};
+    double deadZone = 55.0 / 180.0 * 3.14159; // 75 degrees in radians of absolute deadzone at directly backwards
+    double encoderOffset = -0.2073; // rotations
+    PID myPID{0.02, 1.0, -1.0, 1.2, 0.0, 0.0};
     /* This can be a CANivore name, CANivore serial number,
      * SocketCAN interface, or "*" to select any CANivore. */
     static constexpr char const *CANBUS_NAME = "*";
+    double targetAngle = 0.0;
+    bool backwards = false;
 
     /* devices */
-    hardware::TalonFX left{13, CANBUS_NAME};
-    hardware::TalonFX right{14, CANBUS_NAME};
+    hardware::TalonFXS left{13, CANBUS_NAME};
+    hardware::TalonFXS right{14, CANBUS_NAME};
 
     hardware::CANcoder encoder{22, CANBUS_NAME};
 
@@ -45,6 +47,8 @@ private:
 
     bool joystickToggled = false;
     Teleplot teleplot = Teleplot("127.0.0.1", 47269);
+
+    // double getEncoder();
 
 public:
     /* main robot interface */
@@ -87,6 +91,59 @@ void Robot::RobotPeriodic()
     /* periodically check that the joystick is still good */
     joy.Periodic();
 
+    // teleplot.update("joyx", joy.GetAxis(0));
+    // teleplot.update("joyy", joy.GetAxis(1));
+
+    /* arcade drive */
+    // double speed = -joy.GetAxis(1); // SDL_CONTROLLER_AXIS_LEFTY
+    // double turn = joy.GetAxis(4); // SDL_CONTROLLER_AXIS_RIGHTX
+    double currentAngle = fmod((encoder.GetPosition().GetValueAsDouble() - encoderOffset) * 2.0 * 3.14159, 2.0 * 3.14159); // radians 0 to 2pi
+    if (currentAngle < -3.14159) {
+        currentAngle += 2.0 * 3.14159; // ensure currentAngle is between -3.14 and 3.14
+    } else if (currentAngle > 3.14159) {
+        currentAngle -= 2.0 * 3.14159; 
+    }
+    if (std::abs(joy.GetAxis(0)) > 0.2 || std::abs(joy.GetAxis(1)) > 0.2) {
+        targetAngle = atan2(-joy.GetAxis(0), -joy.GetAxis(1)); //radians -pi to pi
+        backwards = false;
+        
+        // optimize shortspin
+        while (targetAngle - currentAngle > 3.14159 * 0.5) {
+            targetAngle -= 3.14159;
+            backwards = !backwards;
+        }
+        while (targetAngle - currentAngle < -3.14159 * 0.5) {
+            targetAngle += 3.14159;
+            backwards = !backwards;
+        }
+        
+        // limit the target angle to within the operating zone
+        double positiveLimit = 3.14159 - deadZone; // 180 degrees in radians minus deadzone
+        double negativeLimit = -3.14159 + deadZone; // -180 degrees in radians plus deadzone
+        while (targetAngle > positiveLimit) {
+            targetAngle -= 3.14159; 
+            backwards = !backwards; // flip direction
+        } 
+        while (targetAngle < negativeLimit) {
+            targetAngle += 3.14159; 
+            backwards = !backwards; // flip direction
+        }
+        
+    }
+        
+        double speed = -joy.GetAxis(4) * (backwards ? -1 : 1);
+    double turnSpeed = myPID.calculate(targetAngle, currentAngle);
+
+    // cout << "encoder: " << encoder.GetPosition().GetValueAsDouble() << "       " << "turnspeed:" << turnSpeed << "       " << "targetAngle: " << targetAngle << "       " << "currentAngle: " << currentAngle << endl;
+
+    teleplot.update("encoder", encoder.GetPosition().GetValueAsDouble() - encoderOffset, "rotations");
+    teleplot.update("targetAngle", targetAngle, "rad");
+    teleplot.update("currentAngle", currentAngle, "rad");
+    teleplot.update("turnSpeed", turnSpeed, "%");
+    teleplot.update("speed", speed, "%");
+
+    leftOut.Output = speed - turnSpeed;
+    rightOut.Output = -(speed + turnSpeed);
 }
 
 /**
@@ -113,7 +170,8 @@ bool Robot::IsEnabled()
     }
     lastButtonState = currentButtonState;
 
-    return enabled;
+    // return enabled;
+    return currentButtonState; // For testing, always return true when the button is pressed
 }
 
 /**
@@ -126,58 +184,8 @@ void Robot::EnabledInit() {}
  */
 void Robot::EnabledPeriodic()
 {
-    /* arcade drive */
-    // double speed = -joy.GetAxis(1); // SDL_CONTROLLER_AXIS_LEFTY
-    // double turn = joy.GetAxis(4); // SDL_CONTROLLER_AXIS_RIGHTX
-    double targetAngle = atan2(joy.GetAxis(0), -joy.GetAxis(1)); //radians -pi to pi
-    double currentAngle = fmod((encoder.GetPosition().GetValueAsDouble() * 2.0 * 3.14159) - encoderOffset, 2.0 * 3.14159); // radians 0 to 2pi
-    if (currentAngle < -3.14159) {
-        currentAngle += 2.0 * 3.14159; // ensure currentAngle is between -3.14 and 3.14
-    } else if (currentAngle > 3.14159) {
-        currentAngle -= 2.0 * 3.14159; 
-    }
-    bool backwards = false;
-
-    // optimize shortspin
-    while (targetAngle - currentAngle > 3.14159 * 0.5) {
-        targetAngle -= 3.14159;
-        backwards = !backwards;
-    }
-    while (targetAngle - currentAngle < -3.14159 * 0.5) {
-        targetAngle += 3.14159;
-        backwards = !backwards;
-    }
-
-    // limit the target angle to within the operating zone
-    double positiveLimit = 3.14159 - deadZone; // 180 degrees in radians minus deadzone
-    double negativeLimit = -3.14159 + deadZone; // -180 degrees in radians plus deadzone
-    while (targetAngle > positiveLimit) {
-        targetAngle -= 3.14159; 
-        backwards = !backwards; // flip direction
-    } 
-    while (targetAngle < negativeLimit) {
-        targetAngle += 3.14159; 
-        backwards = !backwards; // flip direction
-    }
-
-
-    double speed = joy.GetAxis(4) * (backwards ? -1 : 1);
-    double turnSpeed = myPID.calculate(targetAngle, currentAngle);
-
-    // cout << "encoder: " << encoder.GetPosition().GetValueAsDouble() << "       " << "turnspeed:" << turnSpeed << "       " << "targetAngle: " << targetAngle << "       " << "currentAngle: " << currentAngle << endl;
-
-    teleplot.update("encoder", encoder.GetPosition().GetValueAsDouble(), "rotations");
-    teleplot.update("targetAngle", targetAngle, "rad");
-    teleplot.update("currentAngle", currentAngle, "rad");
-    teleplot.update("turnSpeed", turnSpeed, "%");
-    // cout << "joystick 1  " << joy.GetAxis(1) << "       "
-    //      << "joystick 0  " << joy.GetAxis(0) << "       "
-    //      << atan2(joy.GetAxis(0), -joy.GetAxis(1)) << endl;
-    // leftOut.Output = speed - turnSpeed;
-    // rightOut.Output = speed + turnSpeed;
-
-    // left.SetControl(leftOut);
-    // right.SetControl(rightOut);
+    left.SetControl(leftOut);
+    right.SetControl(rightOut);
 }
 
 /**
@@ -192,8 +200,13 @@ void Robot::DisabledInit() {}
 void Robot::DisabledPeriodic()
 {
     left.SetControl(controls::NeutralOut{});
-    // right.SetControl(controls::NeutralOut{});
+    right.SetControl(controls::NeutralOut{});
 }
+
+// double getEncoder()
+// {
+//     return encoder.GetPosition().GetValueAsDouble() - encoderOffset;
+// }
 
 /* ------ main function ------ */
 int main()
@@ -203,3 +216,4 @@ int main()
     // robot.SetLoopTime(20_ms); // optionally change loop time for periodic calls
     return robot.Run();
 }
+

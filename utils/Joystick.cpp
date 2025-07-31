@@ -10,20 +10,22 @@ bool Joystick::IsConnected() const
         return false;
     }
 
-    /* poll for joystick disconnects */
-    SDL_Event event;
-    if (SDL_PollEvent(&event)) {
-        if (event.type == SDL_QUIT) {
-            /* SDL shut down */
-            return false;
-        }
-        else if (event.cdevice.type == SDL_JOYDEVICEREMOVED) {
-            /* SDL joystick removed */
-            return false;
-        }
-    }
+    // /* poll for joystick disconnects */
+    // SDL_Event event;
+    // if (SDL_PollEvent(&event)) {
+    //     if (event.type == SDL_QUIT) {
+    //         /* SDL shut down */
+    //         return false;
+    //     }
+    //     else if (event.cdevice.type == SDL_JOYDEVICEREMOVED) {
+    //         /* SDL joystick removed */
+    //         return false;
+    //     }
+    // }
 
-    return true;
+    // return true;
+
+    return _joy != nullptr && SDL_JoystickGetAttached(_joy);
 }
 
 void Joystick::ReportMissingJoystick()

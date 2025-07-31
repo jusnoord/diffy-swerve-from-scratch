@@ -141,6 +141,7 @@ public:
      */
     void Periodic()
     {
+        // SDL_PumpEvents(); // update SDL events
         /* poll for game controller disconnects */
         if (!IsConnected()) {
             /* one of the game controllers disconnected, assume it was ours */

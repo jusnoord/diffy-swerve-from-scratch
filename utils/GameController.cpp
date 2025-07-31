@@ -11,19 +11,21 @@ bool GameController::IsConnected() const
     }
 
     /* poll for game controller disconnects */
-    SDL_Event event;
-    if (SDL_PollEvent(&event)) {
-        if (event.type == SDL_QUIT) {
-            /* SDL shut down */
-            return false;
-        }
-        else if (event.cdevice.type == SDL_CONTROLLERDEVICEREMOVED) {
-            /* SDL game controller removed */
-            return false;
-        }
-    }
+    // SDL_Event event;
+    // if (SDL_PollEvent(&event)) {
+    //     if (event.type == SDL_QUIT) {
+    //         /* SDL shut down */
+    //         return false;
+    //     }
+    //     else if (event.cdevice.type == SDL_CONTROLLERDEVICEREMOVED) {
+    //         /* SDL game controller removed */
+    //         return false;
+    //     }
+    // }
 
-    return true;
+    // return true;
+
+    return _joy != nullptr && SDL_GameControllerGetAttached(_joy);
 }
 
 void GameController::ReportMissingGameController()

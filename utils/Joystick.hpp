@@ -191,6 +191,8 @@ public:
             /* no joystick, initialize a new one */
             Init();
         }
+
+        SDL_PumpEvents(); // update SDL events
     }
 
 private:
