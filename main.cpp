@@ -91,9 +91,6 @@ void Robot::RobotPeriodic()
     /* periodically check that the joystick is still good */
     joy.Periodic();
 
-    // teleplot.update("joyx", joy.GetAxis(0));
-    // teleplot.update("joyy", joy.GetAxis(1));
-
     /* arcade drive */
     // double speed = -joy.GetAxis(1); // SDL_CONTROLLER_AXIS_LEFTY
     // double turn = joy.GetAxis(4); // SDL_CONTROLLER_AXIS_RIGHTX
@@ -131,19 +128,45 @@ void Robot::RobotPeriodic()
         
     }
         
-        double speed = -joy.GetAxis(4) * (backwards ? -1 : 1);
+    double speed = -joy.GetAxis(4) * (backwards ? -1 : 1);
     double turnSpeed = myPID.calculate(targetAngle, currentAngle);
 
-    // cout << "encoder: " << encoder.GetPosition().GetValueAsDouble() << "       " << "turnspeed:" << turnSpeed << "       " << "targetAngle: " << targetAngle << "       " << "currentAngle: " << currentAngle << endl;
+    bool isMoving = std::abs(left.GetRotorVelocity().GetValueAsDouble() - right.GetRotorVelocity().GetValueAsDouble()) > 4;
+    double error = std::abs(targetAngle - currentAngle);
+    bool isTurning = isMoving ? error > 1.57: error > 0.1;
+    if (isTurning) {
+        if (isMoving) {
+            speed = 0.0; // stop moving if turning
+            turnSpeed = 0.0;
+        } else {
+            speed = 0.0;
+        }
+    }
+
+    double leftOutput = speed - turnSpeed;
+    double rightOutput = -(speed + turnSpeed);
+
+    //normalize outputs to [-1, 1]
+    double podMaxOutput = std::max(std::abs(leftOutput), std::abs(rightOutput));
+    if (podMaxOutput > 1) {
+        double podOutputScalar = 1 / podMaxOutput;
+
+        leftOutput *= podMaxOutput;
+        rightOutput *= podMaxOutput;
+    }
+
+    leftOut.Output = leftOutput;
+    rightOut.Output = rightOutput;
 
     teleplot.update("encoder", encoder.GetPosition().GetValueAsDouble() - encoderOffset, "rotations");
     teleplot.update("targetAngle", targetAngle, "rad");
     teleplot.update("currentAngle", currentAngle, "rad");
     teleplot.update("turnSpeed", turnSpeed, "%");
     teleplot.update("speed", speed, "%");
+    teleplot.update("left rotor velocity", left.GetRotorVelocity().GetValueAsDouble(), ("rotations/s"));
+    // teleplot.update("joyx", joy.GetAxis(0));
+    // teleplot.update("joyy", joy.GetAxis(1));
 
-    leftOut.Output = speed - turnSpeed;
-    rightOut.Output = -(speed + turnSpeed);
 }
 
 /**

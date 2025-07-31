@@ -5,6 +5,6 @@ cd $DIR
 pwd
 cmake ..
 make
-ssh -i ~/.ssh/robots mackwell@mackwell-K800.local "pkill DiffySwerve"
-scp -i ~/.ssh/robots ./DiffySwerve mackwell@mackwell-K800.local:~/Documents
-ssh -i ~/.ssh/robots mackwell@mackwell-K800.local "~/Documents/DiffySwerve"
+ssh -i ~/.ssh/robots mackwell@10.93.12.201 "pkill DiffySwerve"
+scp -i ~/.ssh/robots ./DiffySwerve mackwell@10.93.12.201:~/Documents
+ssh -i ~/.ssh/robots mackwell@10.93.12.201 "~/Documents/DiffySwerve"
