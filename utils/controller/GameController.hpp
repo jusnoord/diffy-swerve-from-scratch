@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <chrono>
 #include <mutex>
+#include <string>
 
 /**
  * Manages a game controller using the SDL 2 library.

@@ -1,12 +1,10 @@
-#include "ctre/phoenix6/TalonFXS.hpp"
-#include "ctre/phoenix6/CANcoder.hpp"
+
 #include "RobotBase.hpp"
-#include "utils/Joystick.hpp"
-#include "utils/pid.h"
-#include "utils/Teleplot.h"
+#include "utils/controller/Joystick.hpp"
+#include "utils/math/pid.h"
+#include "utils/telemetry/Teleplot.h"
 #include <cmath>
 
-using namespace ctre::phoenix6;
 using namespace std;
 #include <chrono>
 /**
@@ -22,33 +20,9 @@ uint32_t millis() {
 }
 
 class Robot : public RobotBase {
-private:
-    double deadZone = 55.0 / 180.0 * 3.14159; // 75 degrees in radians of absolute deadzone at directly backwards
-    double encoderOffset = -0.2073; // rotations
-    PID myPID{0.02, 1.0, -1.0, 1.2, 0.0, 0.0};
-    /* This can be a CANivore name, CANivore serial number,
-     * SocketCAN interface, or "*" to select any CANivore. */
-    static constexpr char const *CANBUS_NAME = "*";
-    double targetAngle = 0.0;
-    bool backwards = false;
-
-    /* devices */
-    hardware::TalonFXS left{13, CANBUS_NAME};
-    hardware::TalonFXS right{14, CANBUS_NAME};
-
-    hardware::CANcoder encoder{22, CANBUS_NAME};
-
-    /* control requests */
-    controls::DutyCycleOut leftOut{0};
-    controls::DutyCycleOut rightOut{0};
-
+private:    
     /* joystick */
     Joystick joy{0};
-
-    bool joystickToggled = false;
-    Teleplot teleplot = Teleplot("127.0.0.1", 47269);
-
-    // double getEncoder();
 
 public:
     /* main robot interface */
@@ -91,82 +65,6 @@ void Robot::RobotPeriodic()
     /* periodically check that the joystick is still good */
     joy.Periodic();
 
-    /* arcade drive */
-    // double speed = -joy.GetAxis(1); // SDL_CONTROLLER_AXIS_LEFTY
-    // double turn = joy.GetAxis(4); // SDL_CONTROLLER_AXIS_RIGHTX
-    double currentAngle = fmod((encoder.GetPosition().GetValueAsDouble() - encoderOffset) * 2.0 * 3.14159, 2.0 * 3.14159); // radians 0 to 2pi
-    if (currentAngle < -3.14159) {
-        currentAngle += 2.0 * 3.14159; // ensure currentAngle is between -3.14 and 3.14
-    } else if (currentAngle > 3.14159) {
-        currentAngle -= 2.0 * 3.14159; 
-    }
-    if (std::abs(joy.GetAxis(0)) > 0.2 || std::abs(joy.GetAxis(1)) > 0.2) {
-        targetAngle = atan2(-joy.GetAxis(0), -joy.GetAxis(1)); //radians -pi to pi
-        backwards = false;
-        
-        // optimize shortspin
-        while (targetAngle - currentAngle > 3.14159 * 0.5) {
-            targetAngle -= 3.14159;
-            backwards = !backwards;
-        }
-        while (targetAngle - currentAngle < -3.14159 * 0.5) {
-            targetAngle += 3.14159;
-            backwards = !backwards;
-        }
-        
-        // limit the target angle to within the operating zone
-        double positiveLimit = 3.14159 - deadZone; // 180 degrees in radians minus deadzone
-        double negativeLimit = -3.14159 + deadZone; // -180 degrees in radians plus deadzone
-        while (targetAngle > positiveLimit) {
-            targetAngle -= 3.14159; 
-            backwards = !backwards; // flip direction
-        } 
-        while (targetAngle < negativeLimit) {
-            targetAngle += 3.14159; 
-            backwards = !backwards; // flip direction
-        }
-        
-    }
-        
-    double speed = -joy.GetAxis(4) * (backwards ? -1 : 1);
-    double turnSpeed = myPID.calculate(targetAngle, currentAngle);
-
-    bool isMoving = std::abs(left.GetRotorVelocity().GetValueAsDouble() - right.GetRotorVelocity().GetValueAsDouble()) > 4;
-    double error = std::abs(targetAngle - currentAngle);
-    bool isTurning = isMoving ? error > 1.57: error > 0.1;
-    if (isTurning) {
-        if (isMoving) {
-            speed = 0.0; // stop moving if turning
-            turnSpeed = 0.0;
-        } else {
-            speed = 0.0;
-        }
-    }
-
-    double leftOutput = speed - turnSpeed;
-    double rightOutput = -(speed + turnSpeed);
-
-    //normalize outputs to [-1, 1]
-    double podMaxOutput = std::max(std::abs(leftOutput), std::abs(rightOutput));
-    if (podMaxOutput > 1) {
-        double podOutputScalar = 1 / podMaxOutput;
-
-        leftOutput *= podMaxOutput;
-        rightOutput *= podMaxOutput;
-    }
-
-    leftOut.Output = leftOutput;
-    rightOut.Output = rightOutput;
-
-    teleplot.update("encoder", encoder.GetPosition().GetValueAsDouble() - encoderOffset, "rotations");
-    teleplot.update("targetAngle", targetAngle, "rad");
-    teleplot.update("currentAngle", currentAngle, "rad");
-    teleplot.update("turnSpeed", turnSpeed, "%");
-    teleplot.update("speed", speed, "%");
-    teleplot.update("left rotor velocity", left.GetRotorVelocity().GetValueAsDouble(), ("rotations/s"));
-    // teleplot.update("joyx", joy.GetAxis(0));
-    // teleplot.update("joyy", joy.GetAxis(1));
-
 }
 
 /**
@@ -174,26 +72,7 @@ void Robot::RobotPeriodic()
  */
 bool Robot::IsEnabled()
 {
-    /* enable while joystick is an Xbox controller (6 axes),
-     * and we are holding the right bumper */
-    // if (joy.GetNumAxes() < 6) return false;
-
-    //toggle enable state with a debounce
-    static bool lastButtonState = false;
-    static bool enabled = false;
-    static uint32_t lastToggleTime = 0;
-    const uint32_t debounceDelay = 200; // milliseconds
-
     bool currentButtonState = joy.GetButton(5); // Right bumper
-    uint32_t now = millis();
-
-    if (currentButtonState && !lastButtonState && (now - lastToggleTime > debounceDelay)) {
-        enabled = !enabled;
-        lastToggleTime = now;
-    }
-    lastButtonState = currentButtonState;
-
-    // return enabled;
     return currentButtonState; // For testing, always return true when the button is pressed
 }
 
@@ -207,8 +86,6 @@ void Robot::EnabledInit() {}
  */
 void Robot::EnabledPeriodic()
 {
-    left.SetControl(leftOut);
-    right.SetControl(rightOut);
 }
 
 /**
@@ -222,8 +99,6 @@ void Robot::DisabledInit() {}
  */
 void Robot::DisabledPeriodic()
 {
-    left.SetControl(controls::NeutralOut{});
-    right.SetControl(controls::NeutralOut{});
 }
 
 // double getEncoder()
