@@ -6,12 +6,15 @@
 #include <cmath>
 #include "utils/swerve/PodState.h"
 #include "Constants.h"
+#include "utils/translation2d.h"
 
 using namespace ctre::phoenix6;
 using namespace std;
 
 class DrivePod {
 private: 
+    translation2d position{0.0, 0.0}; // Location of the pod in meters'
+    DrivePod(translation2d position) : position(position) {}
     double deadZone = 55.0 / 180.0 * 3.14159; // 75 degrees in radians of absolute deadzone at directly backwards
     double encoderOffset = -0.2073; // rotations
     PID myPID{0.02, 1.0, -1.0, 1.2, 0.0, 0.0};
@@ -102,10 +105,14 @@ private:
     double getAngle() const {
         return encoder.GetPosition().GetValueAsDouble() - encoderOffset; // rotations
     }
+
     
     
 
 public:
+    translation2d GetPosition() {
+        return position;
+    }
     void Initialize() {
         //TODO: convert all of CTRE's preconfigured motor settings from the JSON to code here
     }

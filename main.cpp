@@ -4,6 +4,8 @@
 #include "utils/math/pid.h"
 #include "utils/telemetry/Teleplot.h"
 #include <cmath>
+#include "subsystems/diffySwerve.h"
+#include "utils/pose2d.h"
 
 using namespace std;
 #include <chrono>
@@ -23,6 +25,7 @@ class Robot : public RobotBase {
 private:    
     /* joystick */
     Joystick joy{0};
+    diffySwerve swerve;
 
 public:
     /* main robot interface */
@@ -86,6 +89,9 @@ void Robot::EnabledInit() {}
  */
 void Robot::EnabledPeriodic()
 {
+
+    pose2d speed = pose2d({joy.GetAxis(0), joy.GetAxis(1), joy.GetAxis(2)});
+    swerve.SetRobotSpeed(speed);
 }
 
 /**
