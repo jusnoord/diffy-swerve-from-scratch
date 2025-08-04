@@ -24,7 +24,7 @@ add_definitions(-DUNIT_LIB_DISABLE_FMT -DUNIT_LIB_ENABLE_IOSTREAM)
 # Add all CPP files to the executable
 # Note: Users using GameController should swap out Joystick.cpp with GameController.cpp
 file(GLOB UTILS_SRC "utils/*.cpp" "utils/**/*.cpp")
-add_executable(${PROJECT_NAME} main.cpp RobotBase.cpp subsystems/DrivePod.cpp ${UTILS_SRC})
+add_executable(${PROJECT_NAME} main.cpp RobotBase.cpp subsystems/DrivePod.cpp subsystems/diffySwerve.cpp ${UTILS_SRC})
 
 # Specify libraries to link against
 target_link_libraries(${PROJECT_NAME} phoenix6)

@@ -1,3 +1,5 @@
+#pragma once
+
 class PodState {
 public:
     double PodSpeed;

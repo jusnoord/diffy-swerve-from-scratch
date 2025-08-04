@@ -1,3 +1,6 @@
+#pragma once
+#include "utils/math/translation2d.h"
+
 class Constants {
 public:
        class RobotMap{};
@@ -15,19 +18,20 @@ public:
             int rightMotorID;
             int encoderID;
             double encoderOffset;
-            PodConfig(int leftMotorID, int rightMotorID, int encoderID, double encoderOffset)
-                : leftMotorID(leftMotorID), rightMotorID(rightMotorID), encoderID(encoderID), encoderOffset(encoderOffset) {}
-
+            translation2d position{};
+            PodConfig(int leftMotorID, int rightMotorID, int encoderID, double encoderOffset, translation2d position)
+            : leftMotorID(leftMotorID), rightMotorID(rightMotorID), encoderID(encoderID), encoderOffset(encoderOffset), position(position) {}
+            
             static constexpr bool encoderInvert = true;
             static constexpr bool leftMotorInvert = false;
             static constexpr bool rightMotorInvert = true;
-
+            
             static constexpr double motorGearing = 50.0;
-
+            
             static constexpr bool motorsBrake = true;
             static constexpr int ampLimit = 80;
             static constexpr double maxOutput = 1.0;
             static constexpr double rampRate = 0.2;
-       };
-
-};
+        };
+        
+    };
