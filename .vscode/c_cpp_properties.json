@@ -4,8 +4,8 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "${workspaceFolder}/**/**",
-                "${workspaceFolder}/**/**/**"
+                "${workspaceFolder}/*",
+                "/usr/include/phoenix6/**"
             ],
             "defines": [],
             "cStandard": "c17",
