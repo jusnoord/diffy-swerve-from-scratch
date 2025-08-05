@@ -99,6 +99,8 @@
         "vec4d": "cpp",
         "vec4f": "cpp",
         "*.inc": "cpp",
-        "shape": "cpp"
+        "shape": "cpp",
+        "hash_map": "cpp",
+        "hash_set": "cpp"
     }
 }

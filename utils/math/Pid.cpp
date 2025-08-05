@@ -25,7 +25,7 @@
 
 #include <iostream>
 #include <cmath>
-#include "pid.h"
+#include "Pid.h"
 
 using namespace std;
 

@@ -1,31 +1,22 @@
 
 #include "RobotBase.hpp"
 #include "utils/controller/Joystick.hpp"
-#include "utils/math/pid.h"
-#include "utils/telemetry/Teleplot.h"
 #include <cmath>
-#include "subsystems/diffySwerve.h"
-#include "utils/math/pose2d.h"
+#include "subsystems/DiffySwerve.h"
+#include "utils/math/Pose2d.h"
 
-using namespace std;
 #include <chrono>
 /**
  * This is the main robot. Put all actuators, sensors,
  * game controllers, etc. in this class.
  */
 
-// Returns milliseconds since program start
-uint32_t millis() {
-    static auto start = std::chrono::steady_clock::now();
-    auto now = std::chrono::steady_clock::now();
-    return std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
-}
 
 class Robot : public RobotBase {
 private:    
     /* joystick */
     Joystick joy{0};
-    diffySwerve swerve{};
+    DiffySwerve swerve{};
 
 public:
     /* main robot interface */
@@ -92,7 +83,7 @@ void Robot::EnabledInit() {}
 void Robot::EnabledPeriodic()
 {
 
-    pose2d speed = pose2d(joy.GetAxis(0), joy.GetAxis(1), joy.GetAxis(2));
+    Pose2d speed = Pose2d(joy.GetAxis(0), joy.GetAxis(1), joy.GetAxis(2));
     swerve.SetRobotSpeed(speed);
 }
 
