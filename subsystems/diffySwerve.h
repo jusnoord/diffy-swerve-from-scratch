@@ -20,7 +20,7 @@ using namespace std;
 class diffySwerve{
 private:
     hardware::Pigeon2 gyro;
-
+    auto loopTime = millis();
     Teleplot teleplot = Teleplot("127.0.0.1", 47269);
     std::vector<std::unique_ptr<DrivePod>> drivePods;
     pose2d position = pose2d(0.0, 0.0, 0.0);

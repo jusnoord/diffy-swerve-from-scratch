@@ -13,6 +13,14 @@ using namespace ctre::phoenix6;
 using namespace std;
 #include <vector>
 #include <array>
+#include <chrono>
+
+// Returns milliseconds since program start
+uint32_t millis() {
+    static auto start = std::chrono::steady_clock::now();
+    auto now = std::chrono::steady_clock::now();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
+}
 
 diffySwerve::diffySwerve() : gyro(25, CANBUS_NAME) {
     // Initialize drive pods with their configurations
@@ -57,7 +65,8 @@ pose2d diffySwerve::GetRobotSpeed() const {
     return speeds;
 }
 void diffySwerve::Periodic() {
-    position = pose2d(position.GetTranslation().Plus(translation2d(GetRobotSpeed().GetTranslation()).RotateBy(GetGyro())), GetGyro());
+    position = pose2d(position.GetTranslation().Plus(translation2d(GetRobotSpeed().GetTranslation().Scale(millis() - loopTime)).RotateBy(GetGyro())), GetGyro());
+    loopTime = millis();
 
     //temporary boolean to check if any pod is turning
     bool anyPodTurning = false;
