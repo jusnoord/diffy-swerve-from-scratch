@@ -2,14 +2,13 @@
 #include "../utils/math/Pose2d.h"
 #include "../utils/math/Translation2d.h"
 #include "../utils/swerve/PodState.h"
-#include "DrivePod.h"
+#include "NerdPod.h"
 #include <cmath>
 #include "../Constants.h"
 
 #include "DiffySwerve.h"
 #include "ctre/phoenix6/Pigeon2.hpp"
 #include <vector>
-#include <array>
 #include <chrono>
 using namespace ctre::phoenix6;
 
@@ -23,14 +22,14 @@ uint32_t DiffySwerve::millis()
 
 DiffySwerve::DiffySwerve() : gyro(Constants::RobotMap::PIGEON_ID, Constants::RobotMap::CANBUS_NAME)
 {
-    drivePods.push_back(std::make_unique<DrivePod>(Constants::RobotMap::podConfig1, globalOutputScalar, isTurningSupplier, teleplot));
-    drivePods.push_back(std::make_unique<DrivePod>(Constants::RobotMap::podConfig2, globalOutputScalar, isTurningSupplier, teleplot));
+    drivePods.push_back(std::make_unique<NerdPod>(Constants::RobotMap::podConfig1, globalOutputScalar, isTurningSupplier, teleplot));
+    drivePods.push_back(std::make_unique<NerdPod>(Constants::RobotMap::podConfig2, globalOutputScalar, isTurningSupplier, teleplot));
 }
 
 void DiffySwerve::SetRobotSpeed(Pose2d speeds)
 {
     globalOutputScalar = 1.0; // Reset the global output scalar for each new speed command
-    
+
     for (auto &pod : drivePods)
     {
         Translation2d podSpeed = CalculatePodSpeed(speeds, *pod);
@@ -41,7 +40,7 @@ void DiffySwerve::SetRobotSpeed(Pose2d speeds)
         // teleplot.update("pod speed", coordsStr, "m/s");
     }
 }
-Translation2d DiffySwerve::CalculatePodSpeed(Pose2d speeds, const DrivePod &pod)
+Translation2d DiffySwerve::CalculatePodSpeed(Pose2d speeds, const NerdPod &pod)
 {
     Translation2d podLocation = pod.GetPosition();
     Translation2d turnAmount = Translation2d(speeds.GetTurn() * podLocation.GetDistance(), podLocation.GetRotation());
