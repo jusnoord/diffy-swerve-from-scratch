@@ -189,8 +189,8 @@ public final class Constants {
 		}
 
 
-		private static final double wheelBase = Units.inchesToMeters(11.054);
-		private static final double trackWidth = Units.inchesToMeters(11.054);
+		private static final double wheelBase = Units.inchesToMeters(21);
+		private static final double trackWidth = Units.inchesToMeters(21);
 		public static Pose2d[] offsetPositions = {new Pose2d(new Translation2d(0.0, 0.4), new Rotation2d()), new Pose2d(new Translation2d(0.0, -0.4), new Rotation2d())}; // default center of rotation of robot
 		public static Command reset() {
 			return new InstantCommand(() -> resetOffsetPositions());
@@ -216,18 +216,32 @@ public final class Constants {
 			}
 		}
 		public static final SingleRobotConfig[] robotConfigs = new SingleRobotConfig[] { 
-		new SingleRobotConfig(new PodConfig[] { // prowl AKA master AKA og megatron
-			new PodConfig(16, 15, 23, -0.8865d, new Translation2d(wheelBase / 2, trackWidth / 2)),
-			new PodConfig(14, 13, 22, 0.3328d, new Translation2d(wheelBase / 2, -trackWidth / 2)),
-			new PodConfig(18, 17, 24, 0.8132d, new Translation2d(-wheelBase / 2, trackWidth / 2)),
-			new PodConfig(12, 11, 21, -0.4138d + (1d/33d), new Translation2d(-wheelBase / 2, -trackWidth / 2))
+		new SingleRobotConfig(new PodConfig[] { // first robot
+			new PodConfig(8, 4, 24, 0d, new Translation2d(-wheelBase / 2, -trackWidth / 2)), // BL
+			new PodConfig(9, 5, 22, 0d, new Translation2d(wheelBase / 2, trackWidth / 2)), // FR
+			new PodConfig(10, 6, 21, 0d, new Translation2d(wheelBase / 2, -trackWidth / 2)), // BR
+			new PodConfig(11, 7, 23, 0d, new Translation2d(-wheelBase / 2, trackWidth / 2)) // FL
 		}),
-		new SingleRobotConfig(new PodConfig[] { // NemesisPrime AKA slave AKA Kris's NERDSwerve
-			new PodConfig(16, 15, 23, 0.9844, new Translation2d(wheelBase / 2, trackWidth / 2)),
-			new PodConfig(14, 13, 22, 0.4797, new Translation2d(wheelBase / 2, -trackWidth / 2)),
-			new PodConfig(18, 17, 24, -0.6980, new Translation2d(-wheelBase / 2, trackWidth / 2)),
-			new PodConfig(12, 11, 21, -0.4006, new Translation2d(-wheelBase / 2, -trackWidth / 2))
-		})};
+		new SingleRobotConfig(new PodConfig[] { // second robot
+			new PodConfig(4, 8, 12, 0d, new Translation2d(wheelBase / 2, trackWidth / 2)), // FR
+			new PodConfig(5, 9, 13, 0d, new Translation2d(-wheelBase / 2, -trackWidth / 2)), // BL
+			new PodConfig(6, 10, 14, 0d, new Translation2d(-wheelBase / 2, trackWidth / 2)), // FL
+			new PodConfig(7, 11, 15, 0d, new Translation2d(wheelBase / 2, -trackWidth / 2)) // BR
+		})
+		// new SingleRobotConfig(new PodConfig[] { // prowl AKA master AKA og megatron
+		// 	new PodConfig(16, 15, 23, -0.8865d, new Translation2d(wheelBase / 2, trackWidth / 2)),
+		// 	new PodConfig(14, 13, 22, 0.3328d, new Translation2d(wheelBase / 2, -trackWidth / 2)),
+		// 	new PodConfig(18, 17, 24, 0.8132d, new Translation2d(-wheelBase / 2, trackWidth / 2)),
+		// 	new PodConfig(12, 11, 21, -0.4138d + (1d/33d), new Translation2d(-wheelBase / 2, -trackWidth / 2))
+		// }),
+		
+		// new SingleRobotConfig(new PodConfig[] { // NemesisPrime AKA slave AKA Kris's NERDSwerve
+		// 	new PodConfig(16, 15, 23, 0.9844, new Translation2d(wheelBase / 2, trackWidth / 2)),
+		// 	new PodConfig(14, 13, 22, 0.4797, new Translation2d(wheelBase / 2, -trackWidth / 2)),
+		// 	new PodConfig(18, 17, 24, -0.6980, new Translation2d(-wheelBase / 2, trackWidth / 2)),
+		// 	new PodConfig(12, 11, 21, -0.4006, new Translation2d(-wheelBase / 2, -trackWidth / 2))
+		// })
+		};
 
 
         public static final double robotMaxSpeed = 3.99; // joystick multiplier in meters per second
