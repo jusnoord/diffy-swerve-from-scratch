@@ -138,6 +138,10 @@ $RECYCLE.BIN/
 ### Gradle ###
 .gradle
 /build/
+caches/
+daemon/
+native/
+notifications/
 
 # Ignore Gradle GUI config
 gradle-app.setting
