@@ -40,16 +40,22 @@ public class RobotContainer {
 	public final Swerve swerve;
     private InputGetter inputGetter;
     private PhotonVision photonVision;
+    private InputSender inputSender;
 
 	public RobotContainer() {
         inputGetter = new InputGetter();
-		new InputSender();
+		inputSender = new InputSender();
         if(Constants.IS_MASTER) {
 			swerve = new Swerve(0);
-			PhotonVision.initializeMasterCamera();
+			// Create PhotonVision instance for master camera processing
+			photonVision = PhotonVision.createMasterVision(swerve, CameraName.master);
+			// Connect InputGetter to Swerve for dual-robot mode
+			swerve.setInputGetter(inputGetter);
         } else {
 			swerve = new Swerve(1);
 			photonVision = new PhotonVision(swerve, CameraName.slave);
+			// Connect InputSender to subsystems for sending localization data
+			inputSender.setLocalizationSubsystems(swerve, photonVision);
 		}
 
 		new Trigger(() -> inputGetter.getAButton()).onTrue(new IndependentDrive(swerve, () -> inputGetter.getLeftJoystick(), () -> inputGetter.getRightJoystick(), () -> inputGetter.getMasterOffset()));

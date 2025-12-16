@@ -7,6 +7,7 @@ import java.util.function.DoubleSupplier;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.networktables.BooleanArrayPublisher;
 import edu.wpi.first.networktables.BooleanArraySubscriber;
 import edu.wpi.first.networktables.BooleanPublisher;
@@ -39,6 +40,10 @@ public class InputInterface {
 	private static DoublePublisher timeStampPublisher;
 	private static StructPublisher<Pose2d> joystickVelocityPublisher;
 	private static StructPublisher<Pose2d> masterOffsetPublisher;
+	// Slave localization data publishers (only on slave)
+	private static StructPublisher<Pose2d> slaveOdometryPublisher;
+	private static StructPublisher<Transform2d> slaveCameraTransformPublisher;
+	private static DoublePublisher slaveCameraTimestampPublisher;
 
 	public static void initializeServer() {
 		publishInputs();
@@ -53,11 +58,36 @@ public class InputInterface {
 		timeStampPublisher = table.getDoubleTopic("timeStamp").publish();
 		joystickVelocityPublisher = table.getStructTopic("joystickVelocity", Pose2d.struct).publish();
 		masterOffsetPublisher = table.getStructTopic("masterOffset", Pose2d.struct).publish();
+		
+		// Slave localization data publishers
+		slaveOdometryPublisher = table.getStructTopic("slaveOdometry", Pose2d.struct).publish();
+		slaveCameraTransformPublisher = table.getStructTopic("slaveCameraTransform", Transform2d.struct).publish();
+		slaveCameraTimestampPublisher = table.getDoubleTopic("slaveCameraTimestamp").publish();
 	}
 
 	public static void updateInputs(Pose2d masterOffset) {
 		inputs = new Inputs(masterOffset);
-}
+	}
+	
+	/**
+	 * Updates slave localization data (odometry and camera) to send to master.
+	 * Should be called from slave robot.
+	 * 
+	 * @param slaveOdometry The slave robot's current odometry pose
+	 * @param slaveCameraTransform The robot-relative transform from slave camera to tag
+	 * @param slaveCameraTimestamp The timestamp of the camera measurement
+	 */
+	public static void updateSlaveLocalizationData(Pose2d slaveOdometry, Transform2d slaveCameraTransform, double slaveCameraTimestamp) {
+		if (slaveOdometryPublisher != null) {
+			slaveOdometryPublisher.set(slaveOdometry);
+		}
+		if (slaveCameraTransformPublisher != null) {
+			slaveCameraTransformPublisher.set(slaveCameraTransform);
+		}
+		if (slaveCameraTimestampPublisher != null) {
+			slaveCameraTimestampPublisher.set(slaveCameraTimestamp);
+		}
+	}
 
 	public static void updateInputs(XboxController controller, boolean isenabled, double timeStamp, Pose2d joystickVelocity) {
 		inputs = new Inputs(controller, isenabled, timeStamp, joystickVelocity);
@@ -83,6 +113,10 @@ public class InputInterface {
 	private static DoubleSubscriber timeStampSubscriber;
 	private static StructSubscriber<Pose2d> joystickVelocitySubscriber;
 	private static StructSubscriber<Pose2d> masterOffsetSubscriber;
+	// Slave localization data subscribers (only on master)
+	private static StructSubscriber<Pose2d> slaveOdometrySubscriber;
+	private static StructSubscriber<Transform2d> slaveCameraTransformSubscriber;
+	private static DoubleSubscriber slaveCameraTimestampSubscriber;
 
 	/** initializes the client-side inputs, should be called once at the start of the robot code on slave(s*/
 	public static void initializeClient() {
@@ -101,6 +135,11 @@ public class InputInterface {
 		timeStampSubscriber = table.getDoubleTopic("timeStamp").subscribe(0.0);
 		joystickVelocitySubscriber = table.getStructTopic("joystickVelocity", Pose2d.struct).subscribe(new Pose2d());
 		masterOffsetSubscriber = table.getStructTopic("masterOffset", Pose2d.struct).subscribe(new Pose2d());
+		
+		// Slave localization data subscribers
+		slaveOdometrySubscriber = table.getStructTopic("slaveOdometry", Pose2d.struct).subscribe(new Pose2d());
+		slaveCameraTransformSubscriber = table.getStructTopic("slaveCameraTransform", Transform2d.struct).subscribe(new Transform2d());
+		slaveCameraTimestampSubscriber = table.getDoubleTopic("slaveCameraTimestamp").subscribe(0.0);
 	}
 
 	public static Inputs grabInputs() {
@@ -110,7 +149,10 @@ public class InputInterface {
 				isEnabledSubscriber.get(),
 				timeStampSubscriber.get(),
 				joystickVelocitySubscriber.get(), 
-				masterOffsetSubscriber.get());
+				masterOffsetSubscriber.get(),
+				slaveOdometrySubscriber.get(),
+				slaveCameraTransformSubscriber.get(),
+				slaveCameraTimestampSubscriber.get());
 	}
 
 	/**
@@ -137,9 +179,19 @@ public class InputInterface {
 		public double timeStamp;
 		public Pose2d joystickVelocity;
 		public Pose2d masterOffset = RobotConfig.offsetPositions[0];
+		// Slave localization data (only populated on master)
+		public Pose2d slaveOdometry = new Pose2d();
+		public Transform2d slaveCameraTransform = new Transform2d();
+		public double slaveCameraTimestamp = 0.0;
 		
 		public Inputs (Pose2d masterOffset) {
 			this.masterOffset = masterOffset;
+		}
+		
+		public Inputs(Pose2d slaveOdometry, Transform2d slaveCameraTransform, double slaveCameraTimestamp) {
+			this.slaveOdometry = slaveOdometry;
+			this.slaveCameraTransform = slaveCameraTransform;
+			this.slaveCameraTimestamp = slaveCameraTimestamp;
 		}
 
 		public Inputs(XboxController controller, boolean isenabled, double timeStamp, Pose2d joystickVelocity) {
@@ -195,6 +247,35 @@ public class InputInterface {
 		public Inputs(double[] sticks, boolean[] buttons, boolean isEnabled, double timeStamp, Pose2d joystickVelocity, Pose2d masterOffset) {
 			this.joystickVelocity = joystickVelocity;
 			this.masterOffset = masterOffset;
+			//double values
+			this.leftX = MathUtil.applyDeadband(sticks[0], JoystickConstants.deadband);
+			this.leftY = MathUtil.applyDeadband(sticks[1], JoystickConstants.deadband);
+			this.rightX = MathUtil.applyDeadband(sticks[2], JoystickConstants.deadband);
+			this.rightY = MathUtil.applyDeadband(sticks[3], JoystickConstants.deadband);
+			this.leftTrigger = sticks[4];
+			this.rightTrigger = sticks[5];
+			this.pov = (int) sticks[6];
+
+			//boolean values
+			this.aButton = buttons[0];
+			this.bButton = buttons[1];
+			this.xButton = buttons[2];
+			this.yButton = buttons[3];
+			this.leftBumper = buttons[4];
+			this.rightBumper = buttons[5];
+			this.startButton = buttons[6];
+			this.backButton = buttons[7];
+			this.isEnabled = isEnabled;
+			this.timeStamp = timeStamp;
+		}
+		
+		public Inputs(double[] sticks, boolean[] buttons, boolean isEnabled, double timeStamp, Pose2d joystickVelocity, Pose2d masterOffset, 
+				Pose2d slaveOdometry, Transform2d slaveCameraTransform, double slaveCameraTimestamp) {
+			this.joystickVelocity = joystickVelocity;
+			this.masterOffset = masterOffset;
+			this.slaveOdometry = slaveOdometry;
+			this.slaveCameraTransform = slaveCameraTransform;
+			this.slaveCameraTimestamp = slaveCameraTimestamp;
 			//double values
 			this.leftX = MathUtil.applyDeadband(sticks[0], JoystickConstants.deadband);
 			this.leftY = MathUtil.applyDeadband(sticks[1], JoystickConstants.deadband);

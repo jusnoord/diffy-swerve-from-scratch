@@ -22,18 +22,34 @@ import frc.robot.Robot;
 import frc.robot.Constants.RobotConfig;
 import frc.robot.commands.IndependentDrive;
 import frc.robot.util.InputInterface;
+import frc.robot.util.Tuple;
 
-/**subsystem that runs on the master to send inputs to NT */
+/**subsystem that runs on the master to send inputs to NT, and on slave to send localization data */
 public class InputSender extends SubsystemBase {
 	/** Creates a new SendInputs. */
 	private XboxController controller;
 	private SlewRateLimiter xLimiter = new SlewRateLimiter(1.0);
 	private SlewRateLimiter yLimiter = new SlewRateLimiter(1.0);
 	private SlewRateLimiter rotationalLimiter = new SlewRateLimiter(3.0);
-
+	
+	// References to subsystems for slave localization data (only used on slave)
+	private Swerve swerve;
+	private PhotonVision photonVision;
 
 	public InputSender() {
 		controller = new XboxController(JoystickConstants.driverPort);		
+	}
+	
+	/**
+	 * Sets references to Swerve and PhotonVision subsystems for sending localization data.
+	 * Should be called from slave robot.
+	 * 
+	 * @param swerve The Swerve subsystem
+	 * @param photonVision The PhotonVision subsystem
+	 */
+	public void setLocalizationSubsystems(Swerve swerve, PhotonVision photonVision) {
+		this.swerve = swerve;
+		this.photonVision = photonVision;
 	}
 
 	@Override
@@ -42,6 +58,26 @@ public class InputSender extends SubsystemBase {
 			InputInterface.updateInputs(controller, DriverStation.isEnabled(), Timer.getFPGATimestamp(), grabJoystickVelocity());
 		} else {
 			InputInterface.updateInputs(IndependentDrive.masterOffset);
+			
+			// Send slave localization data to master
+			if (swerve != null && photonVision != null) {
+				Pose2d slaveOdometry = swerve.getPose();
+				Tuple<Transform2d, Double> cameraUpdates = photonVision.getCameraUpdates();
+				if (cameraUpdates != null) {
+					InputInterface.updateSlaveLocalizationData(
+						slaveOdometry,
+						cameraUpdates.k,
+						cameraUpdates.v
+					);
+				} else {
+					// Send odometry even if no camera data
+					InputInterface.updateSlaveLocalizationData(
+						slaveOdometry,
+						new Transform2d(),
+						0.0
+					);
+				}
+			}
 		}
 	}
 

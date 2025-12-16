@@ -112,4 +112,17 @@ public class InputGetter extends SubsystemBase {
     public Pose2d getJoystickVelocity() {
         return inputs.joystickVelocity;
     }
+    
+    // Methods to get slave localization data (only populated on master)
+    public Pose2d getSlaveOdometry() {
+        return inputs.slaveOdometry;
+    }
+    
+    public Transform2d getSlaveCameraTransform() {
+        return inputs.slaveCameraTransform;
+    }
+    
+    public double getSlaveCameraTimestamp() {
+        return inputs.slaveCameraTimestamp;
+    }
 }
