@@ -13,7 +13,6 @@ import edu.wpi.first.math.estimator.DifferentialDrivePoseEstimator;
 import edu.wpi.first.math.estimator.PoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Twist2d;
 import edu.wpi.first.math.interpolation.TimeInterpolatableBuffer;
@@ -56,10 +55,6 @@ public class NERDPoseEstimator {
     private final NavigableMap<Double, VisionUpdate> m_visionUpdates = new TreeMap<>();
 
     private Pose2d m_poseEstimate;
-    
-    // Dual-robot mode: second estimator for slave robot
-    private NERDPoseEstimator m_slaveEstimator = null;
-    private Pose2d m_slavePoseEstimate = new Pose2d();
 
     /**
      * Constructs a TurdPoseEstimator.
@@ -506,148 +501,6 @@ public class NERDPoseEstimator {
         public Pose2d compensate(Pose2d pose) {
             var delta = pose.minus(this.odometryPose);
             return this.visionPose.plus(delta);
-        }
-    }
-    
-    /**
-     * Initializes dual-robot mode with a slave pose estimator.
-     * This allows combining inputs from both master and slave robots.
-     * 
-     * @param slaveKinematics Kinematics for the slave robot
-     * @param slaveGyroAngle Initial gyro angle for slave
-     * @param slaveModulePositions Initial module positions for slave
-     * @param slaveInitialPose Initial pose estimate for slave
-     */
-    public void initializeDualRobotMode(
-            SwerveDriveKinematics slaveKinematics,
-            Rotation2d slaveGyroAngle,
-            SwerveModulePosition[] slaveModulePositions,
-            Pose2d slaveInitialPose) {
-        m_slaveEstimator = new NERDPoseEstimator(
-            slaveKinematics,
-            slaveGyroAngle,
-            slaveModulePositions,
-            slaveInitialPose
-        );
-        m_slavePoseEstimate = slaveInitialPose;
-    }
-    
-    /**
-     * Updates slave robot pose estimate with odometry received from slave.
-     * 
-     * @param slaveOdometry The slave robot's current odometry pose
-     * @return Updated slave pose estimate
-     */
-    public Pose2d updateSlaveOdometry(Pose2d slaveOdometry) {
-        if (m_slaveEstimator != null) {
-            // If we have a full estimator, we'd update it with module positions
-            // For now, use the odometry directly
-            m_slavePoseEstimate = slaveOdometry;
-        }
-        return m_slavePoseEstimate;
-    }
-    
-    /**
-     * Adds a vision measurement from the slave robot's camera.
-     * Combines the slave camera transform with master pose to compute field-relative pose.
-     * 
-     * @param slaveCameraTransform Robot-relative transform from slave camera to tag
-     * @param timestampSeconds Timestamp of the vision measurement
-     * @param masterPoseAtTime Master pose at the time of the vision measurement
-     * @param distance Distance to the vision target
-     */
-    public void addSlaveVisionMeasurement(
-            Transform2d slaveCameraTransform,
-            double timestampSeconds,
-            Pose2d masterPoseAtTime,
-            double distance) {
-        if (m_slaveEstimator == null) {
-            return;
-        }
-        
-        // Convert slave camera transform to field-relative pose
-        // The transform is robot-relative (from slave camera to tag)
-        // We need to compute the field-relative pose of the slave
-        
-        // For a more accurate implementation, we would:
-        // 1. Use the known tag position in field coordinates
-        // 2. Transform from tag to slave camera
-        // 3. Transform from slave camera to slave center
-        // 4. Get field-relative slave pose
-        
-        // Simplified approach: use master pose + relative offset
-        // This assumes the tag is at a known location relative to master
-        // In practice, you'd want to use the actual tag field position
-        Pose2d fieldRelativeSlavePose = masterPoseAtTime.plus(slaveCameraTransform);
-        
-        m_slaveEstimator.addVisionMeasurement(
-            fieldRelativeSlavePose,
-            timestampSeconds,
-            VecBuilder.fill(distance / 2, distance / 2, distance / 2)
-        );
-        m_slavePoseEstimate = m_slaveEstimator.getEstimatedPosition();
-    }
-    
-    /**
-     * Combines robot-relative offsets from master and slave cameras.
-     * Uses the relative transform between robots to improve both pose estimates.
-     * 
-     * @param masterCameraTransform Master robot-relative transform to tag
-     * @param slaveCameraTransform Slave robot-relative transform to tag
-     * @param masterTimestamp Timestamp of master measurement
-     * @param slaveTimestamp Timestamp of slave measurement
-     * @param masterPoseAtTime Master pose at master measurement time
-     * @param slavePoseAtTime Slave pose at slave measurement time
-     */
-    public void combineRelativeOffsets(
-            Transform2d masterCameraTransform,
-            Transform2d slaveCameraTransform,
-            double masterTimestamp,
-            double slaveTimestamp,
-            Pose2d masterPoseAtTime,
-            Pose2d slavePoseAtTime) {
-        if (m_slaveEstimator == null) {
-            return;
-        }
-        
-        // Both robots see the same tag, so we can compute their relative positions
-        // The difference in camera transforms tells us about the relative pose
-        
-        // Compute relative transform: if both see the same tag, the difference
-        // in their camera-to-tag transforms (in tag frame) gives us robot-to-robot transform
-        // Transform from master to slave in tag frame: slaveTransform - masterTransform
-        
-        // Use this relative transform to cross-validate and improve both estimates
-        // If we know the expected relative position, we can use it to correct both poses
-        
-        // For now, we'll use a weighted combination approach
-        // In a more sophisticated implementation, we would use the relative constraint
-        // to jointly optimize both poses
-    }
-    
-    /**
-     * Gets the estimated pose for the slave robot (only valid in dual-robot mode).
-     * 
-     * @return Slave robot pose estimate
-     */
-    public Pose2d getSlaveEstimatedPosition() {
-        return m_slavePoseEstimate;
-    }
-    
-    /**
-     * Resets the slave pose estimator.
-     * 
-     * @param slaveGyroAngle Slave gyro angle
-     * @param slaveModulePositions Slave module positions
-     * @param slavePose New slave pose
-     */
-    public void resetSlavePosition(
-            Rotation2d slaveGyroAngle,
-            SwerveModulePosition[] slaveModulePositions,
-            Pose2d slavePose) {
-        if (m_slaveEstimator != null) {
-            m_slaveEstimator.resetPosition(slaveGyroAngle, slaveModulePositions, slavePose);
-            m_slavePoseEstimate = slavePose;
         }
     }
 }

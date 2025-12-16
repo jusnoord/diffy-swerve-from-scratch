@@ -71,12 +71,7 @@ public class PhotonVision extends SubsystemBase {
     public PhotonVision(Swerve drivetrain, CameraName camName) {
         this.drivetrain = drivetrain;
 
-        // Determine camera location based on robot type
-        Transform3d cameraLocation = Constants.IS_MASTER ? 
-            RobotConstants.MASTER_CAMERA_LOCATION : 
-            RobotConstants.SLAVE_CAMERA_LOCATION;
-        
-        camThread = new CameraThread(camName, cameraLocation);
+        camThread = new CameraThread(camName, RobotConstants.SLAVE_CAMERA_LOCATION);
         camThread.start();
 
         //this code grabs the pose from the master robot, and thus should only run on slave(s)
@@ -91,23 +86,9 @@ public class PhotonVision extends SubsystemBase {
     /**
      * only use for master robot, if no pose estimation is desired. does not start camera thread.
      * This is used to initialize the camera for the master robot, so that it can run the TimeServer for the slave(s).
-     * 
-     * @deprecated Use the PhotonVision constructor with master camera instead
      */
-    @Deprecated
     public static void initializeMasterCamera() {
         CameraThread.initializeCamera(CameraName.master.toString());
-    }
-    
-    /**
-     * Creates a PhotonVision instance for the master robot to process master camera data.
-     * 
-     * @param drivetrain The Swerve drivetrain subsystem
-     * @param camName The camera name (should be CameraName.master)
-     * @return A PhotonVision instance for master camera processing
-     */
-    public static PhotonVision createMasterVision(Swerve drivetrain, CameraName camName) {
-        return new PhotonVision(drivetrain, camName);
     }
 
     /**
@@ -131,65 +112,36 @@ public class PhotonVision extends SubsystemBase {
     
     private synchronized void updateVision() {
         Tuple<Transform2d, Double> updates = camThread.getUpdates();
-        
-        if (Constants.IS_MASTER) {
-            // On master: process master camera and send directly to drivetrain
-            // The master processes its own camera data for dual-robot estimation
-            Pose2d currentMasterPose = drivetrain.getPose();
-            
-            // Convert camera transform to field-relative pose
-            // This is a simplified version - adjust based on your tag layout
-            Transform2d visionTranslation = new Transform2d(
-                updates.k.getTranslation().plus(RobotConstants.centerOfMasterToTag)
-                    .rotateBy(currentMasterPose.getRotation())
-                    .rotateBy(Rotation2d.k180deg),
-                updates.k.getRotation().unaryMinus().rotateBy(Rotation2d.kCW_90deg)
-            );
-            
-            Pose2d fieldRelativePose = new Pose2d(
-                currentMasterPose.getTranslation().plus(visionTranslation.getTranslation()),
-                currentMasterPose.getRotation().plus(visionTranslation.getRotation())
-            );
-            
-            // Add vision measurement to master pose estimator
-            drivetrain.addVisionMeasurement(fieldRelativePose, updates.v, updates.k.getTranslation().getNorm());
-            
-            posePublisher.accept(fieldRelativePose);
-            pose = fieldRelativePose;
-        } else {
-            // On slave: old behavior - process camera relative to master pose
-            // Note: In the new architecture, slave just sends raw camera data to master
-            // This code is kept for backward compatibility but may not be used
-            timestampedMasterPoses.addAll(List.of(masterPoseSubscriber.readQueue()));
+        timestampedMasterPoses.addAll(List.of(masterPoseSubscriber.readQueue()));
 
-            //trim timestampedMasterPoses to 10 values (for efficiency)
-            if (timestampedMasterPoses.size() > 10) {
-                timestampedMasterPoses = timestampedMasterPoses.subList(timestampedMasterPoses.size() - 10, timestampedMasterPoses.size());
-            }
-
-            //find the master pose with the closest timestamp to the camera's timestamp
-            //NT timestamps are measured in microseconds, PhotonVision timestamps are seconds. Mulitiply by one million to convert/
-            double visionTimeStampMicroSeconds = updates.v * 1000000d;
-            closestMasterPose = timestampedMasterPoses.stream()
-                .min((a, b) -> Double.compare(Math.abs(a.serverTime - visionTimeStampMicroSeconds), Math.abs(b.serverTime - visionTimeStampMicroSeconds)))
-                .map(pose -> pose.value)
-                .orElse(null);
-            
-            if (closestMasterPose != null) {
-                //account for tag-to-robot and camera-to-robot offsets and then combine vision measurement with master odometry positio
-                Transform2d visionTranslation = new Transform2d(updates.k.getTranslation().plus(RobotConstants.centerOfMasterToTag).rotateBy(drivetrain.getPose().getRotation()).rotateBy(Rotation2d.k180deg), updates.k.getRotation().unaryMinus().rotateBy(Rotation2d.kCW_90deg));
-                
-                Pose2d fieldRelativePose = new Pose2d(closestMasterPose.getTranslation().plus(visionTranslation.getTranslation()), closestMasterPose.getRotation().plus(visionTranslation.getRotation()));
-
-                // add the master pose to the translation to get field-relative pose. 
-                // grab the timestamp
-                // grab the distance to the best tag
-                drivetrain.addVisionMeasurement(fieldRelativePose, updates.v, updates.k.getTranslation().getNorm());
-
-                posePublisher.accept(fieldRelativePose);
-                pose = fieldRelativePose;
-            }
+        //trim timestampedMasterPoses to 10 values (for efficiency)
+        if (timestampedMasterPoses.size() > 10) {
+            timestampedMasterPoses = timestampedMasterPoses.subList(timestampedMasterPoses.size() - 10, timestampedMasterPoses.size());
         }
+
+        //find the master pose with the closest timestamp to the camera's timestamp
+        //NT timestamps are measured in microseconds, PhotonVision timestamps are seconds. Mulitiply by one million to convert/
+        double visionTimeStampMicroSeconds = updates.v * 1000000d;
+        closestMasterPose = timestampedMasterPoses.stream()
+            .min((a, b) -> Double.compare(Math.abs(a.serverTime - visionTimeStampMicroSeconds), Math.abs(b.serverTime - visionTimeStampMicroSeconds)))
+            .map(pose -> pose.value)
+            .orElse(null);
+        
+        
+        //account for tag-to-robot and camera-to-robot offsets and then combine vision measurement with master odometry positio
+        Transform2d visionTranslation = new Transform2d(updates.k.getTranslation().plus(RobotConstants.centerOfMasterToTag).rotateBy(drivetrain.getPose().getRotation()).rotateBy(Rotation2d.k180deg), updates.k.getRotation().unaryMinus().rotateBy(Rotation2d.kCW_90deg));//.rotateBy(Rotation2d.kCW_90deg));//.plus(new Rotation2d(Degrees.of(90))));
+        
+        Pose2d fieldRelativePose = new Pose2d(closestMasterPose.getTranslation().plus(visionTranslation.getTranslation()), closestMasterPose.getRotation().plus(visionTranslation.getRotation()));
+
+
+        // add the master pose to the translation to get field-relative pose. 
+        // grab the timestamp
+        // grab the distance to the best tag
+        drivetrain.addVisionMeasurement(fieldRelativePose, updates.v, updates.k.getTranslation().getNorm());
+
+        posePublisher.accept(fieldRelativePose);
+        pose = fieldRelativePose;
+
     }
 
 
@@ -316,32 +268,19 @@ public class PhotonVision extends SubsystemBase {
             return updates;
         }
 
-    /**
-     * Returns if the camera (during latest loop cycle) has a target
-     *
-     * This is separate from the value on the NetworkTables, as this value is updated for the entire loop cycle <p>
-     * there is an edge case where a target is found, but the pose is not updated <p>
-     * likewise, there is an edge case where a target is found and then lost, but the pose is updated <p>
-     * to solve this, the hasTarget value is marked as true iff any update has been sent to the estimator <p>
-     * @ImplNote this is NOT strictly synchronized with the value from {@link #getUpdates()}; be careful when using this value. should use PhotonVision's hasTarget() function for most cases
-     * @return has a target or not
-     */
-    public boolean hasTarget() {
-        return hasTarget;
-    }
-    
-    /**
-     * Gets the most recent camera updates (transform and timestamp) for sending to master.
-     * Returns null if no camera thread is running or no updates are available.
-     * 
-     * @return Tuple containing the robot-relative transform to tag and timestamp, or null
-     */
-    public Tuple<Transform2d, Double> getCameraUpdates() {
-        if (camThread != null) {
-            return camThread.getUpdates();
+        /**
+         * Returns if the camera (during latest loop cycle) has a target
+         *
+         * This is separate from the value on the NetworkTables, as this value is updated for the entire loop cycle <p>
+         * there is an edge case where a target is found, but the pose is not updated <p>
+         * likewise, there is an edge case where a target is found and then lost, but the pose is updated <p>
+         * to solve this, the hasTarget value is marked as true iff any update has been sent to the estimator <p>
+         * @ImplNote this is NOT strictly synchronized with the value from {@link #getUpdates()}; be careful when using this value. should use PhotonVision's hasTarget() function for most cases
+         * @return has a target or not
+         */
+        public boolean hasTarget() {
+            return hasTarget;
         }
-        return null;
-    }
 
         private PhotonCamera getCameraObject() {
             return camera;

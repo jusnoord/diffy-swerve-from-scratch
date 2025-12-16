@@ -32,10 +32,8 @@ import edu.wpi.first.networktables.DoubleSubscriber;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructArrayPublisher;
 import edu.wpi.first.networktables.StructPublisher;
-import edu.wpi.first.networktables.StructSubscriber;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
-import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -44,7 +42,6 @@ import frc.robot.Constants.RobotConfig.SingleRobotConfig;
 import frc.robot.util.NERDPoseEstimator;
 import frc.robot.Constants;
 import frc.robot.Robot;
-import frc.robot.subsystems.InputGetter;
 
 /**a subsystem for a NERDSwerve robot */
 public class Swerve extends SubsystemBase {
@@ -67,13 +64,6 @@ public class Swerve extends SubsystemBase {
 	DoubleEntry azimuthkPSub;
 	DoubleEntry azimuthkISub;
 	DoubleEntry azimuthkDSub;
-	
-	// For dual-robot mode on master: publisher for computed slave pose
-	private StructPublisher<Pose2d> computedSlavePosePublisher;
-	// Reference to InputGetter for receiving slave data (only on master)
-	private InputGetter inputGetter;
-	// For slave: subscriber to receive computed pose from master
-	private StructSubscriber<Pose2d> computedPoseSubscriber;
 
 	double simGyroPosition = 0;
 
@@ -117,30 +107,6 @@ public class Swerve extends SubsystemBase {
 		PosePublisher = NetworkTableInstance.getDefault().getTable(tab).getStructTopic("RobotPose", Pose2d.struct).publish();
 		ChassisSpeedsPublisher = NetworkTableInstance.getDefault().getTable(tab).getStructTopic("ChassisSpeeds", ChassisSpeeds.struct)
 				.publish();
-		
-		// Initialize dual-robot mode on master
-		if (Constants.IS_MASTER) {
-			// Initialize slave estimator in dual-robot mode
-			// We'll need slave kinematics - use the slave robot config
-			poseEstimator.initializeDualRobotMode(
-				RobotConfig.robotConfigs[1].drivetrainKinematics,
-				new Rotation2d(), // Will be updated with actual slave data
-				new SwerveModulePosition[4], // Placeholder, will use odometry directly
-				new Pose2d() // Initial slave pose
-			);
-			
-			// Publisher for computed slave pose
-			computedSlavePosePublisher = NetworkTableInstance.getDefault()
-				.getTable(Constants.RobotType.slave.toString())
-				.getStructTopic("ComputedRobotPose", Pose2d.struct)
-				.publish();
-		} else {
-			// On slave: subscribe to computed pose from master
-			computedPoseSubscriber = NetworkTableInstance.getDefault()
-				.getTable(Constants.currentRobot.toString())
-				.getStructTopic("ComputedRobotPose", Pose2d.struct)
-				.subscribe(new Pose2d());
-		}
 
 		// initialize PID subscribers
 		if(Constants.tuningMode) {
@@ -164,49 +130,6 @@ public class Swerve extends SubsystemBase {
 	public void periodic() {
 		//update odometry
 		poseEstimator.update(getGyro(), getModulePositions());
-		
-		// On slave: receive computed pose from master and update estimator
-		if (!Constants.IS_MASTER && computedPoseSubscriber != null) {
-			Pose2d computedPose = computedPoseSubscriber.get();
-			// If we have a valid computed pose, use it to update our estimator
-			if (computedPose.getTranslation().getNorm() > 0.001 || computedPose.getRotation().getRadians() != 0) {
-				// Reset pose estimator to computed pose periodically
-				// In a more sophisticated implementation, we'd fuse this with local odometry
-				// For now, we'll use it as a vision measurement
-				poseEstimator.addVisionMeasurement(computedPose, Timer.getFPGATimestamp(), VecBuilder.fill(0.1, 0.1, 0.1));
-			}
-		}
-		
-		// On master: process slave data and compute dual-robot poses
-		if (Constants.IS_MASTER && inputGetter != null) {
-			// Get slave data from InputGetter
-			Pose2d slaveOdometry = inputGetter.getSlaveOdometry();
-			Transform2d slaveCameraTransform = inputGetter.getSlaveCameraTransform();
-			double slaveCameraTimestamp = inputGetter.getSlaveCameraTimestamp();
-			
-			// Update slave odometry
-			poseEstimator.updateSlaveOdometry(slaveOdometry);
-			
-			// If we have camera data, add vision measurement
-			if (slaveCameraTimestamp > 0.0 && slaveCameraTransform.getTranslation().getNorm() > 0.001) {
-				// Get master pose at the time of slave camera measurement
-				Pose2d masterPoseAtTime = getPose(); // Simplified - in practice would interpolate to timestamp
-				double distance = slaveCameraTransform.getTranslation().getNorm();
-				
-				poseEstimator.addSlaveVisionMeasurement(
-					slaveCameraTransform,
-					slaveCameraTimestamp,
-					masterPoseAtTime,
-					distance
-				);
-			}
-			
-			// Publish computed slave pose
-			Pose2d computedSlavePose = poseEstimator.getSlaveEstimatedPosition();
-			if (computedSlavePosePublisher != null) {
-				computedSlavePosePublisher.set(computedSlavePose);
-			}
-		}
 
 		//update telemetry
 		SmartDashboard.putNumber("pigeon", getGyro().getDegrees());
@@ -369,14 +292,5 @@ public class Swerve extends SubsystemBase {
 	 */
 	public void resetPose(Pose2d pose) {
 		poseEstimator.resetPose(pose);
-	}
-	
-	/**
-	 * Sets the InputGetter reference for dual-robot mode (only on master).
-	 * 
-	 * @param inputGetter The InputGetter subsystem
-	 */
-	public void setInputGetter(InputGetter inputGetter) {
-		this.inputGetter = inputGetter;
 	}
 }
