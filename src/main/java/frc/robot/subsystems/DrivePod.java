@@ -51,7 +51,7 @@ public class DrivePod extends SubsystemBase {
     private double initialOffset;
 
 
-    public DrivePod(int absoluteEncoderID, int azimuthID, int driveID, double absoluteEncoderOffset, boolean azimuthInvert, int azimuthLimit, double azimuthRotationsPerRot, boolean azimuthBrake, double azimuthRR, double kP, double kI, double kD, double FF, double maxOut, double ADMult, boolean driveInvert, int driveLimit, boolean driveBrake, double driveRR) {
+    public DrivePod(int absoluteEncoderID, int azimuthID, int driveID, double absoluteEncoderOffset, boolean azimuthInvert, int azimuthLimit, double azimuthRotationsPerRot, boolean azimuthBrake, double azimuthRR, double kP, double kI, double kD, double kS, double kV, double kA, double maxOut, double ADMult, boolean driveInvert, int driveLimit, boolean driveBrake, double driveRR) {
         absoluteEncoder = makeCANCoder(absoluteEncoderID, false, absoluteEncoderOffset);
         
         driveMotor = makeDrive(driveID, driveInvert, driveBrake, driveLimit, driveRR, Constants.RobotConfig.driveMetersPerMotorRotation, 1d);
@@ -61,7 +61,9 @@ public class DrivePod extends SubsystemBase {
         if(azimuthConfig.Slot0.kP != kP) {azimuthConfig.Slot0.kP = kP; apply = true;}
         if(azimuthConfig.Slot0.kI != kI) {azimuthConfig.Slot0.kI = kI; apply = true;}
         if(azimuthConfig.Slot0.kD != kD) {azimuthConfig.Slot0.kD = kD; apply = true;}
-        if(azimuthConfig.Slot0.kS != FF) {azimuthConfig.Slot0.kS = FF; apply = true;}
+        if(azimuthConfig.Slot0.kS != kS) {azimuthConfig.Slot0.kS = kS; apply = true;}
+        if(azimuthConfig.Slot0.kV != kV) {azimuthConfig.Slot0.kV = kV; apply = true;}
+        if(azimuthConfig.Slot0.kA != kA) {azimuthConfig.Slot0.kA = kA; apply = true;}
         if(azimuthConfig.MotorOutput.PeakForwardDutyCycle != maxOut) {
             azimuthConfig.MotorOutput.PeakForwardDutyCycle = maxOut;
             azimuthConfig.MotorOutput.PeakReverseDutyCycle = -maxOut;

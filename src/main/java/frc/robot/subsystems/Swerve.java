@@ -38,6 +38,8 @@ import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants.RobotConfig;
+import frc.robot.Constants.RobotMap;
+import frc.robot.Constants.RobotMap.PodConfig;
 import frc.robot.Constants.RobotConfig.SingleRobotConfig;
 import frc.robot.util.NERDPoseEstimator;
 import frc.robot.Constants;
@@ -61,33 +63,25 @@ public class Swerve extends SubsystemBase {
 	StructArrayPublisher<SwerveModuleState> SMSPublisher;
 	StructPublisher<Pose2d> PosePublisher;
 	StructPublisher<ChassisSpeeds> ChassisSpeedsPublisher;
-	DoubleEntry azimuthkPSub;
-	DoubleEntry azimuthkISub;
-	DoubleEntry azimuthkDSub;
+	DoubleEntry azimuthkPSub, azimuthkISub, azimuthkDSub, azimuthkSSub, azimuthkVSub, azimuthkASub;
 
 	double simGyroPosition = 0;
 
 	public Swerve(int robot) {
-		drivetrainKinematics = RobotConfig.robotConfigs[robot].drivetrainKinematics;
+		SingleRobotConfig config = RobotConfig.robotConfigs[robot];
+		drivetrainKinematics = config.drivetrainKinematics;
 		gyro = new Pigeon2(RobotConfig.pigeonID);
 
 		for (int i = 0; i < RobotConfig.robotConfigs[robot].PodConfigs.length; i++) {
+			PodConfig podConfig = config.PodConfigs[i];
 			pods.add(
-					// new DrivePod(i, RobotMap.PodConfigs[i].encoderID, RobotMap.PodConfigs[i].leftMotorID,
-					// RobotMap.PodConfigs[i].rightMotorID, PodConfig.leftMotorInvert, PodConfig.rightMotorInvert,
-					// RobotMap.PodConfigs[i].encoderOffset, PodConfig.encoderInvert, PodConfig.ampLimit,
-					// PodConfig.motorsBrake, PodConfig.rampRate, PodConfig.kP, PodConfig.kI, PodConfig.kD, PodConfig.motorGearing));
-					new DrivePod(RobotConfig.robotConfigs[robot].PodConfigs[i].encoderID, RobotConfig.robotConfigs[robot].PodConfigs[i].azimuthID, RobotConfig.robotConfigs[robot].PodConfigs[i].driveID, RobotConfig.robotConfigs[robot].PodConfigs[i].encoderOffset, RobotConfig.azimuthInvert, 
-					RobotConfig.azimuthAmpLimit, RobotConfig.azimuthRadiansPerMotorRotation, RobotConfig.azimuthBrake, RobotConfig.azimuthMotorRampRate, RobotConfig.azimuthkP, 
-					RobotConfig.azimuthkI, RobotConfig.azimuthkD, RobotConfig.azimuthkS, RobotConfig.azimuthMaxOutput, RobotConfig.azimuthDriveSpeedMultiplier, RobotConfig.driveInvert, 
+					new DrivePod(podConfig.encoderID, podConfig.azimuthID, podConfig.driveID, podConfig.encoderOffset, RobotConfig.azimuthInvert, 
+					RobotConfig.azimuthAmpLimit, RobotConfig.azimuthRadiansPerMotorRotation, RobotConfig.azimuthBrake, RobotConfig.azimuthMotorRampRate, 
+					podConfig.kP, podConfig.kI, podConfig.kD, podConfig.kS, podConfig.kV, podConfig.kA, 
+					RobotConfig.azimuthMaxOutput, RobotConfig.azimuthDriveSpeedMultiplier, RobotConfig.driveInvert, 
 					RobotConfig.driveAmpLimit, RobotConfig.driveBrake, RobotConfig.driveMotorRampRate));
 		}
 
-
-		// initialize pod positions
-		SwerveModulePosition positions[] = pods.stream()
-				.map(DrivePod::getPodPosition)
-				.toArray(SwerveModulePosition[]::new);
 
 		// initialize odometry based on the pod positions
 		poseEstimator = new NERDPoseEstimator(
@@ -110,13 +104,13 @@ public class Swerve extends SubsystemBase {
 
 		// initialize PID subscribers
 		if(Constants.tuningMode) {
-			azimuthkPSub = NetworkTableInstance.getDefault().getTable(tab).getSubTable("PIDs").getDoubleTopic("kP").getEntry(RobotConfig.PodConfig.kP);
-			azimuthkISub = NetworkTableInstance.getDefault().getTable(tab).getSubTable("PIDs").getDoubleTopic("kI").getEntry(RobotConfig.PodConfig.kI);
-			azimuthkDSub = NetworkTableInstance.getDefault().getTable(tab).getSubTable("PIDs").getDoubleTopic("kD").getEntry(RobotConfig.PodConfig.kD);
+			azimuthkPSub = NetworkTableInstance.getDefault().getTable(tab).getSubTable("PIDs").getDoubleTopic("kP").getEntry(RobotConfig.robotConfigs[robot].PodConfigs[0].kP);
+			azimuthkISub = NetworkTableInstance.getDefault().getTable(tab).getSubTable("PIDs").getDoubleTopic("kI").getEntry(RobotConfig.robotConfigs[robot].PodConfigs[0].kI);
+			azimuthkDSub = NetworkTableInstance.getDefault().getTable(tab).getSubTable("PIDs").getDoubleTopic("kD").getEntry(RobotConfig.robotConfigs[robot].PodConfigs[0].kD);
 
-			azimuthkPSub.set(RobotConfig.PodConfig.kP);
-			azimuthkISub.set(RobotConfig.PodConfig.kI);
-			azimuthkDSub.set(RobotConfig.PodConfig.kD);
+			azimuthkPSub.set(RobotConfig.robotConfigs[robot].PodConfigs[0].kP);
+			azimuthkISub.set(RobotConfig.robotConfigs[robot].PodConfigs[0].kI);
+			azimuthkDSub.set(RobotConfig.robotConfigs[robot].PodConfigs[0].kD);
 
 			azimuthkDSub.getAtomic();
 		}

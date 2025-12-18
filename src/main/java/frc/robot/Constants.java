@@ -48,20 +48,6 @@ public final class Constants {
 	 * Includes pod configurations, camera names, and kinematics.
 	 */
 	public final class RobotMap {
-		private static final double wheelBase = 1.0;
-		private static final double trackWidth = 1.0;
-		public static final PodConfig[] PodConfigs = {
-			new PodConfig(0, 1, 2, 0d, new Translation2d(wheelBase / 2, trackWidth / 2)),
-			new PodConfig(3, 4, 5, 0d, new Translation2d(wheelBase / 2, -trackWidth / 2)),
-			new PodConfig(6, 7, 8, 0d, new Translation2d(-wheelBase / 2, trackWidth / 2)),
-			new PodConfig(9, 10, 11, 0d, new Translation2d(-wheelBase / 2, -trackWidth / 2))
-		};
-		public static SwerveDriveKinematics drivetrainKinematics = new SwerveDriveKinematics(
-			java.util.Arrays.stream(PodConfigs)
-				.map(pod -> pod.position)
-				.toArray(Translation2d[]::new)
-		);
-
 
 
 		// Camera IDs. this is for individual camera-threads, but there's only one so its fine
@@ -73,33 +59,64 @@ public final class Constants {
 		 * PodConfig holds configuration for a single swerve pod.
 		 * Includes motor IDs, encoder offsets, and position.
 		 */
-		public static final class PodConfig {
-			public final int leftMotorID;
-			public final int rightMotorID;
+		/**
+		 * PodConfig holds configuration for a single robot pod.
+		 */
+        public static final class PodConfig {
+			public final int azimuthID;
+			public final int driveID;
 			public final int encoderID;
 			public final double encoderOffset;
 			public final Translation2d position;
-			public PodConfig(int leftMotorID, int rightMotorID, int encoderID, double encoderOffset, Translation2d position) {
-				this.leftMotorID = leftMotorID;
-				this.rightMotorID = rightMotorID;
-				this.encoderID = encoderID;
-				this.encoderOffset = encoderOffset;
-				this.position = position;
-			}
-			public static final boolean encoderInvert = true;
-			public static final boolean leftMotorInvert = false; 
-			public static final boolean rightMotorInvert = true; 
-
-			public static final double motorGearing = 50;
 
 			public static final boolean motorsBrake = true;
-			public static final int ampLimit = 80;
-			public static final double maxOutput = 1;
-			public static final double rampRate = 0.2;
 
-			public static final double kP = 1;
-			public static final double kI = 0.0;
-			public static final double kD = 0.2;
+			public final int ampLimit;
+			public final double maxOutput;
+			public final double rampRate;
+
+			public final double kP;
+			public final double kI;
+			public final double kD;
+			public final double kS;
+			public final double kV;
+			public final double kA;
+
+			public PodConfig(int azimuthID, int driveID, int encoderID, double encoderOffset, Translation2d podPosition) {
+				this.azimuthID = azimuthID;
+				this.driveID = driveID;
+				this.encoderID = encoderID;
+				this.encoderOffset = encoderOffset;
+				this.position = podPosition;
+				kP = 1;
+				kI = 0.0;
+				kD = 0.2;
+				kS = 0;
+				kV = 0;
+				kA = 0;
+				ampLimit = 80;
+				maxOutput = 1;
+				rampRate = 0.2;
+			}
+
+
+			public PodConfig(PodConfig podConfig, double kP, double kI, double kD, double kS, double kV, double kA) {
+				this.azimuthID = podConfig.azimuthID;
+				this.driveID = podConfig.driveID;
+				this.encoderID = podConfig.encoderID;
+				this.encoderOffset = podConfig.encoderOffset;
+				this.position = podConfig.position;
+				this.kP = kP;
+				this.kI = kI;
+				this.kD = kD;
+				this.kS = kS; 
+				this.kV = kV;
+				this.kA = kA;
+				ampLimit = podConfig.ampLimit;
+				maxOutput = podConfig.maxOutput;
+				rampRate = podConfig.rampRate;
+			}
+
 		}
 	}
 
@@ -148,7 +165,7 @@ public final class Constants {
 		public static final double mass = 50; // kg, approximate mass of the robot
 		public static final double wheelRadius = 0.3; // meters
 		public static final double trackWidth = 0.5; // meters, distance between left and right wheels
-		public static final double gearRatio = 1/PodConfig.motorGearing; // gear ratio of the drivetrain
+		public static final double gearRatio = 0.02; // gear ratio of the drivetrain
 
 	}
 
@@ -157,36 +174,13 @@ public final class Constants {
 	 * Includes pod configs, kinematics, and reset logic.
 	 */
 	public class RobotConfig {
-		public static final double driveMetersPerMotorRotation = 1/(Units.inchesToMeters(2) * Math.PI / 1.36); //Wheel Diameter M * PI / Enc Count Per Rev / Gear Ratio
+		public static final double driveMetersPerMotorRotation = 8.143/(Units.inchesToMeters(4)*Math.PI);//1/(Units.inchesToMeters(2) * Math.PI / 1.36); //Wheel Diameter M * PI / Enc Count Per Rev / Gear Ratio ((inverted))
+        public static final double azimuthDriveSpeedMultiplier = 1.0/3.571;
+        public static final double azimuthRadiansPerMotorRotation = 21.4286;
 
         public static final int pigeonID = 25;
         public static final PIDController gyroPID = new PIDController(0.046, 0d, 0.001);
 
-        /**
-		 * PodConfig holds configuration for a single robot pod.
-		 */
-        public static final class PodConfig {
-			public final int azimuthID;
-			public final int driveID;
-			public final int encoderID;
-			public final double encoderOffset;
-			public final Translation2d position;
-			public PodConfig(int azimuthID, int driveID, int encoderID, double encoderOffset, Translation2d podPosition) {
-				this.azimuthID = azimuthID;
-				this.driveID = driveID;
-				this.encoderID = encoderID;
-				this.encoderOffset = encoderOffset;
-				this.position = podPosition;
-			}
-
-			public static final double motorGearing = 50;
-
-			public static final boolean motorsBrake = true;
-
-			public static final double kP = 1;
-			public static final double kI = 0.0;
-			public static final double kD = 0.2;
-		}
 
 
 		private static final double wheelBase = Units.inchesToMeters(21);
@@ -214,33 +208,25 @@ public final class Constants {
 						.toArray(Translation2d[]::new)
 				);
 			}
+			public SingleRobotConfig(PodConfig[] podConfigs, double kP, double kI, double kD, double kS, double kV, double kA) {
+				this.PodConfigs = podConfigs;
+				for (int i = 0; i < podConfigs.length; i++) {
+					podConfigs[i] = new PodConfig(podConfigs[i], kP, kI, kD, kD, kS, kA);
+				}
+				this.drivetrainKinematics = new SwerveDriveKinematics(
+					java.util.Arrays.stream(podConfigs)
+						.map(pod -> pod.position)
+						.toArray(Translation2d[]::new)
+				);
+			}
 		}
 		public static final SingleRobotConfig[] robotConfigs = new SingleRobotConfig[] { 
 		new SingleRobotConfig(new PodConfig[] { // first robot
-			new PodConfig(8, 4, 24, 0d, new Translation2d(-wheelBase / 2, -trackWidth / 2)), // BL
-			new PodConfig(9, 5, 22, 0d, new Translation2d(wheelBase / 2, trackWidth / 2)), // FR
-			new PodConfig(10, 6, 21, 0d, new Translation2d(wheelBase / 2, -trackWidth / 2)), // BR
-			new PodConfig(11, 7, 23, 0d, new Translation2d(-wheelBase / 2, trackWidth / 2)) // FL
-		}),
-		new SingleRobotConfig(new PodConfig[] { // second robot
-			new PodConfig(4, 8, 12, 0d, new Translation2d(wheelBase / 2, trackWidth / 2)), // FR
-			new PodConfig(5, 9, 13, 0d, new Translation2d(-wheelBase / 2, -trackWidth / 2)), // BL
-			new PodConfig(6, 10, 14, 0d, new Translation2d(-wheelBase / 2, trackWidth / 2)), // FL
-			new PodConfig(7, 11, 15, 0d, new Translation2d(wheelBase / 2, -trackWidth / 2)) // BR
-		})
-		// new SingleRobotConfig(new PodConfig[] { // prowl AKA master AKA og megatron
-		// 	new PodConfig(16, 15, 23, -0.8865d, new Translation2d(wheelBase / 2, trackWidth / 2)),
-		// 	new PodConfig(14, 13, 22, 0.3328d, new Translation2d(wheelBase / 2, -trackWidth / 2)),
-		// 	new PodConfig(18, 17, 24, 0.8132d, new Translation2d(-wheelBase / 2, trackWidth / 2)),
-		// 	new PodConfig(12, 11, 21, -0.4138d + (1d/33d), new Translation2d(-wheelBase / 2, -trackWidth / 2))
-		// }),
-		
-		// new SingleRobotConfig(new PodConfig[] { // NemesisPrime AKA slave AKA Kris's NERDSwerve
-		// 	new PodConfig(16, 15, 23, 0.9844, new Translation2d(wheelBase / 2, trackWidth / 2)),
-		// 	new PodConfig(14, 13, 22, 0.4797, new Translation2d(wheelBase / 2, -trackWidth / 2)),
-		// 	new PodConfig(18, 17, 24, -0.6980, new Translation2d(-wheelBase / 2, trackWidth / 2)),
-		// 	new PodConfig(12, 11, 21, -0.4006, new Translation2d(-wheelBase / 2, -trackWidth / 2))
-		// })
+			new PodConfig(8, 4, 24, 0.3184, new Translation2d(-wheelBase / 2, -trackWidth / 2)), // BL
+			new PodConfig(9, 5, 22, 0.2168, new Translation2d(wheelBase / 2, trackWidth / 2)), // FR
+			new PodConfig(10, 6, 21, 0.0891, new Translation2d(wheelBase / 2, -trackWidth / 2)), // BR
+			new PodConfig(11, 7, 23, 0.2756, new Translation2d(-wheelBase / 2, trackWidth / 2)) // FL
+		}, 100.0, 0.0, 0.5, 0.1, 2.66, 0.0)
 		};
 
 
@@ -255,13 +241,6 @@ public final class Constants {
         public static final double azimuthMaxOutput = 1;
 
 
-        public static final double azimuthkP = 1.2;
-        
-        public static final double azimuthkI = 0.02;
-        public static final double azimuthkD = 0.001;
-        public static final double azimuthkS = 0.0;
-
-        public static final double azimuthDriveSpeedMultiplier = 0.5;
 
         public static final double azimuthMotorRampRate = 0.0;
 		public static final boolean encoderInvert = true;
@@ -276,7 +255,6 @@ public final class Constants {
         public static final int boostDriveLimit = 90;
         public static final double driveMotorRampRate = 0.2;
 
-        public static final double azimuthRadiansPerMotorRotation = 2.200000047683716;
 		public static final boolean driveInvert = true; 
 	}
 }
