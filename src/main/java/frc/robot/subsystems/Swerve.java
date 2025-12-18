@@ -73,6 +73,7 @@ public class Swerve extends SubsystemBase {
 
 	
 	public Swerve(int robot) {
+		System.out.println("swerve called");
 		SingleRobotConfig config = RobotConfig.robotConfigs[robot];
 		drivetrainKinematics = config.drivetrainKinematics;
 		gyro = new Pigeon2(RobotConfig.pigeonID);
@@ -124,6 +125,7 @@ public class Swerve extends SubsystemBase {
 
 	@Override
 	public void periodic() {
+		System.out.print("swerve periodic");
 		//update odometry
 		poseEstimator.update(getGyro(), getModulePositions());
 

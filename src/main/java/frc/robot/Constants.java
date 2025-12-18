@@ -35,7 +35,7 @@ public final class Constants {
 
     //grab the master/slave from a file on the robot. This will determine whether it's running the shuffleboard server.
     public static final Path MASTER_PATH = Paths.get("/home/lvuser/master");
-    public static final boolean IS_MASTER = true; //MASTER_PATH.toFile().exists();
+    public static final boolean IS_MASTER = !MASTER_PATH.toFile().exists();
 	//TODO: phase out if statements and replace them with switches w/ this enum
 	public static enum RobotType {
 		master, slave
@@ -176,7 +176,7 @@ public final class Constants {
 	public class RobotConfig {
 		public static final double driveMetersPerMotorRotation = 8.143/(Units.inchesToMeters(4)*Math.PI);//1/(Units.inchesToMeters(2) * Math.PI / 1.36); //Wheel Diameter M * PI / Enc Count Per Rev / Gear Ratio ((inverted))
         public static final double azimuthDriveSpeedMultiplier = 1.0/3.571;
-        public static final double azimuthRadiansPerMotorRotation = 21.4286;
+        public static final double azimuthRadiansPerMotorRotation = 1/21.4286;
 
         public static final int pigeonID = 25;
         public static final PIDController gyroPID = new PIDController(0.046, 0d, 0.001);
@@ -223,10 +223,10 @@ public final class Constants {
 		public static final SingleRobotConfig[] robotConfigs = new SingleRobotConfig[] { 
 		new SingleRobotConfig(new PodConfig[] { // first robot
 			new PodConfig(8, 4, 24, 0.3184, new Translation2d(-wheelBase / 2, -trackWidth / 2)), // BL
-			new PodConfig(9, 5, 22, 0.2168, new Translation2d(wheelBase / 2, trackWidth / 2)), // FR
+			new PodConfig(5, 9, 22, 0.2168, new Translation2d(wheelBase / 2, trackWidth / 2)), // FR
 			new PodConfig(10, 6, 21, 0.0891, new Translation2d(wheelBase / 2, -trackWidth / 2)), // BR
-			new PodConfig(11, 7, 23, 0.2756, new Translation2d(-wheelBase / 2, trackWidth / 2)) // FL
-		}, 100.0, 0.0, 0.5, 0.1, 2.66, 0.0)
+			new PodConfig(7, 11, 23, 0.2756, new Translation2d(-wheelBase / 2, trackWidth / 2)) // FL
+		}, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 		};
 
 
@@ -249,7 +249,7 @@ public final class Constants {
         // Drive Settings
         public static final double podMaxSpeed = 1;
 
-        public static final boolean driveBrake = false;
+        public static final boolean driveBrake = true;
 
         public static final int driveAmpLimit = 80;
         public static final int boostDriveLimit = 90;

@@ -48,10 +48,10 @@ public class RobotContainer {
 		new InputSender();
         if(Constants.IS_MASTER) {
 			swerve = new Swerve(0);
-			// PhotonVision.initializeMasterCamera();
+			PhotonVision.initializeMasterCamera();
         } else {
 			swerve = new Swerve(1);
-			// photonVision = new PhotonVision(swerve, CameraName.slave);
+			photonVision = new PhotonVision(swerve, CameraName.slave);
 		}
 		swerve.setDefaultCommand(new IndependentDrive(swerve, () -> new Pose2d(1, 1, new Rotation2d(43)), () -> new Pose2d(1, 1, new Rotation2d(43)), () -> new Pose2d(1, 1, new Rotation2d(43))));
 		new Trigger(() -> inputGetter.getAButton()).onTrue(new IndependentDrive(swerve, () -> inputGetter.getLeftJoystick(), () -> inputGetter.getRightJoystick(), () -> inputGetter.getMasterOffset()));

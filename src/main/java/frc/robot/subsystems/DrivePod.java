@@ -10,6 +10,7 @@ import java.util.function.DoubleSupplier;
 import com.ctre.phoenix6.configs.CANcoderConfiguration;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.PositionDutyCycle;
+import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.hardware.CANcoder;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
@@ -45,13 +46,14 @@ public class DrivePod extends SubsystemBase {
     boolean apply = true;
 
     //making position duty cycle default because it's the simplest. if you want to use a different control type, you can change it
-    private final PositionDutyCycle anglePID = new PositionDutyCycle(0).withSlot(0);
+    private final PositionVoltage anglePID = new PositionVoltage(0).withSlot(0);
 
 
     private double initialOffset;
 
 
     public DrivePod(int absoluteEncoderID, int azimuthID, int driveID, double absoluteEncoderOffset, boolean azimuthInvert, int azimuthLimit, double azimuthRotationsPerRot, boolean azimuthBrake, double azimuthRR, double kP, double kI, double kD, double kS, double kV, double kA, double maxOut, double ADMult, boolean driveInvert, int driveLimit, boolean driveBrake, double driveRR) {
+        // System.out.println("drivePod called");
         absoluteEncoder = makeCANCoder(absoluteEncoderID, false, absoluteEncoderOffset);
         
         driveMotor = makeDrive(driveID, driveInvert, driveBrake, driveLimit, driveRR, Constants.RobotConfig.driveMetersPerMotorRotation, 1d);
@@ -90,7 +92,7 @@ public class DrivePod extends SubsystemBase {
      */
     public TalonFX makeDrive(int id, boolean inverted, boolean isBrake, double statorLimit, double rampRate, double ENCODER_TO_MECHANISM_RATIO, double ROTOR_TO_ENCODER_RATIO) {
         //I figured nobody had the guts to put a CANivore on a turdswerve, so i'm leaving out the CAN bus parameter
-        motor = new TalonFX(id);
+        motor = new TalonFX(id, "*");
 
         //set neutral mode and inverts
         driveConfig.MotorOutput.Inverted = inverted ? InvertedValue.Clockwise_Positive : InvertedValue.CounterClockwise_Positive;
@@ -117,6 +119,7 @@ public class DrivePod extends SubsystemBase {
         driveConfig.Feedback.RotorToSensorRatio = ROTOR_TO_ENCODER_RATIO;
         //the remote sensor defaults to internal encoder
 
+        // System.out.print("drive made");
         motor.getConfigurator().apply(driveConfig);
 
         return motor;
@@ -137,7 +140,7 @@ public class DrivePod extends SubsystemBase {
      */
     public TalonFX makeAzimuth(int id, int encoderID, boolean inverted, boolean isBrake, double statorLimit, double rampRate, double ENCODER_TO_MECHANISM_RATIO, double ROTOR_TO_ENCODER_RATIO) {
         //I figured nobody had the guts to put a CANivore on a turdswerve, so i'm leaving out the CAN bus parameter
-        motor = new TalonFX(id);
+        motor = new TalonFX(id, "*");
 
         //set neutral mode and inverts
         azimuthConfig.MotorOutput.Inverted = inverted ? InvertedValue.Clockwise_Positive : InvertedValue.CounterClockwise_Positive;
@@ -167,6 +170,7 @@ public class DrivePod extends SubsystemBase {
         azimuthConfig.Feedback.FeedbackRemoteSensorID = encoderID;
         azimuthConfig.Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.FusedCANcoder;
 
+        // System.out.print("azimuth made");
         motor.getConfigurator().apply(azimuthConfig);
 
         return motor;
@@ -179,7 +183,7 @@ public class DrivePod extends SubsystemBase {
      * @param id the CAN id of the sensor
      */
     private CANcoder makeCANCoder(int id, boolean inverted, double offset) {
-        CANcoder encoder = new CANcoder(id);
+        CANcoder encoder = new CANcoder(id, "*");
 
         coderConfig.MagnetSensor.SensorDirection = inverted ? SensorDirectionValue.Clockwise_Positive : SensorDirectionValue.CounterClockwise_Positive;
         coderConfig.MagnetSensor.MagnetOffset = -offset;
@@ -250,7 +254,7 @@ public class DrivePod extends SubsystemBase {
         azimuthMotor.setControl(anglePID.withPosition(state.angle.getRotations())); 
         speed = state.speedMetersPerSecond;
 
-        driveMotor.set(speed); 
+        driveMotor.setVoltage(speed); 
     }
 
     @Override
