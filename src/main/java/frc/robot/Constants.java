@@ -222,15 +222,15 @@ public final class Constants {
 		}
 		public static final SingleRobotConfig[] robotConfigs = new SingleRobotConfig[] { 
 		new SingleRobotConfig(new PodConfig[] { // first robot
-			new PodConfig(8, 4, 24, 0.3184, new Translation2d(-wheelBase / 2, -trackWidth / 2)), // BL
-			new PodConfig(5, 9, 22, 0.2168, new Translation2d(wheelBase / 2, trackWidth / 2)), // FR
-			new PodConfig(10, 6, 21, 0.0891, new Translation2d(wheelBase / 2, -trackWidth / 2)), // BR
-			new PodConfig(7, 11, 23, 0.2756, new Translation2d(-wheelBase / 2, trackWidth / 2)) // FL
-		}, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+			new PodConfig(8, 4, 24, 0.3184, new Translation2d(wheelBase / 2, -trackWidth / 2)), // BL
+			new PodConfig(5, 9, 22, 0.7168, new Translation2d(-wheelBase / 2, trackWidth / 2)), // FR
+			new PodConfig(10, 6, 21, 0.5891, new Translation2d(wheelBase / 2, trackWidth / 2)), // BR
+			new PodConfig(7, 11, 23, 0.2756, new Translation2d(-wheelBase / 2, -trackWidth / 2)) // FL - +
+		}, 100.0, 0.0, 0.5, 0.1, 2.66, 0.0)
 		};
 
 
-        public static final double robotMaxSpeed = 3.99; // joystick multiplier in meters per second
+        public static final double robotMaxSpeed = 12; // joystick multiplier in meters per second
         public static final double formationMaxRotationalSpeed = 0.6; //maximum rotational speed of the formation in rad/s
 
 
@@ -244,17 +244,17 @@ public final class Constants {
 
         public static final double azimuthMotorRampRate = 0.0;
 		public static final boolean encoderInvert = true;
-		public static final boolean azimuthInvert = false; 
+		public static final boolean azimuthInvert = true; 
 
         // Drive Settings
         public static final double podMaxSpeed = 1;
 
-        public static final boolean driveBrake = true;
+        public static final boolean driveBrake = false;
 
         public static final int driveAmpLimit = 80;
         public static final int boostDriveLimit = 90;
-        public static final double driveMotorRampRate = 0.2;
+        public static final double driveMotorRampRate = 0.0;
 
-		public static final boolean driveInvert = true; 
+		public static final boolean driveInvert = false; 
 	}
 }

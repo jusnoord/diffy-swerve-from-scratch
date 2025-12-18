@@ -10,4 +10,4 @@ rsync -avz --exclude-from='.rsync-exclude' ./ $URL:$DESTINATION
 echo "Deployment complete!"
 
 echo "running remote sim and piping output to terminal..."
-ssh -t $URL "cd $DESTINATION && ./simulate.sh"
+ssh -t $URL "cd /home/sparky/diffy-swerve-from-scratch/ && ./gradlew simulateJava -PhwSim"

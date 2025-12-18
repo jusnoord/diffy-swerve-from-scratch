@@ -28,9 +28,9 @@ public class IndependentDrive extends Command {
   private final Swerve swerve;
   private final Supplier<Pose2d> leftJoystickVelocity, rightJoystickVelocity, masterOffsetSupplier;
   
-	private SlewRateLimiter xLimiter = new SlewRateLimiter(0.1);
-	private SlewRateLimiter yLimiter = new SlewRateLimiter(0.1);
-	private SlewRateLimiter rotationalLimiter = new SlewRateLimiter(1.2);
+	private SlewRateLimiter xLimiter = new SlewRateLimiter(0);
+	private SlewRateLimiter yLimiter = new SlewRateLimiter(0); //0.1
+	private SlewRateLimiter rotationalLimiter = new SlewRateLimiter(0); //1.2
   private StructSubscriber<Pose2d> masterPoseSubscriber;
   private StructPublisher<Pose2d> centerPosePublisher, masterOffsetPublisher, slaveOffsetPublisher, slaveTargetPosePublisher, masterCurrentPosePublisher, slaveCurrentPosePublisher;
   // private Pose2d formationCenterPosition = new Pose2d();

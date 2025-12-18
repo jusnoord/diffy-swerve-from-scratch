@@ -43,7 +43,7 @@ public class RobotContainer {
 	private CommandXboxController temp = new CommandXboxController(0);
 
 	public RobotContainer() {
-		temp.a().whileTrue(new IndependentDrive(new Swerve(0), () -> new Pose2d(1, 1, new Rotation2d(33)), () -> new Pose2d(1, 1, new Rotation2d(33)), () -> new Pose2d(1, 1, new Rotation2d(33))));
+		// temp.a().whileTrue(new IndependentDrive(new Swerve(0), () -> new Pose2d(1, 1, new Rotation2d(33)), () -> new Pose2d(1, 1, new Rotation2d(33)), () -> new Pose2d(1, 1, new Rotation2d(33))));
         inputGetter = new InputGetter();
 		new InputSender();
         if(Constants.IS_MASTER) {
@@ -53,8 +53,8 @@ public class RobotContainer {
 			swerve = new Swerve(1);
 			photonVision = new PhotonVision(swerve, CameraName.slave);
 		}
-		swerve.setDefaultCommand(new IndependentDrive(swerve, () -> new Pose2d(1, 1, new Rotation2d(43)), () -> new Pose2d(1, 1, new Rotation2d(43)), () -> new Pose2d(1, 1, new Rotation2d(43))));
-		new Trigger(() -> inputGetter.getAButton()).onTrue(new IndependentDrive(swerve, () -> inputGetter.getLeftJoystick(), () -> inputGetter.getRightJoystick(), () -> inputGetter.getMasterOffset()));
+		// swerve.setDefaultCommand(new IndependentDrive(swerve, () -> new Pose2d(1, 1, new Rotation2d(43)), () -> new Pose2d(1, 1, new Rotation2d(43)), () -> new Pose2d(1, 1, new Rotation2d(43))));
+		new Trigger(() -> inputGetter.getAButton()).whileTrue(new IndependentDrive(swerve, () -> inputGetter.getLeftJoystick(), () -> inputGetter.getRightJoystick(), () -> inputGetter.getMasterOffset()));
 		new Trigger(() -> inputGetter.getBButton()).onTrue(new TandemDrive(swerve, inputGetter::getJoystickVelocity).ignoringDisable(true));
 		new Trigger(() -> inputGetter.getXButton()).onTrue(RobotConfig.reset());
 		//manually spin individual pods based on dpad input + right joystick input
