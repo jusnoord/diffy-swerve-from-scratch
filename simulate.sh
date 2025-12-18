@@ -4,7 +4,7 @@
 PROJECT_ROOT=$(pwd)
 JNI_DIR="$PROJECT_ROOT/build/jni/release"
 # JAVA_BIN="/nix/store/j29aw4vdyzglbwbx7gv3bb4nn6zxwwls-openjdk-17.0.17+10/lib/openjdk/bin/java"
-JAVA_BIN="JAVA_HOME=/home/sparky/wpilib/2025/jdk/java"
+JAVA_BIN="/usr/bin/java"
 
 # env vars that point to libraries
 export HALSIM_EXTENSIONS="$JNI_DIR/libhalsim_ds_socket.so:$JNI_DIR/libhalsim_gui.so"
