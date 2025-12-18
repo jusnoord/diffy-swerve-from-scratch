@@ -40,18 +40,20 @@ public class RobotContainer {
 	public final Swerve swerve;
     private InputGetter inputGetter;
     private PhotonVision photonVision;
+	private CommandXboxController temp = new CommandXboxController(0);
 
 	public RobotContainer() {
+		temp.a().whileTrue(new IndependentDrive(new Swerve(0), () -> new Pose2d(1, 1, new Rotation2d(33)), () -> new Pose2d(1, 1, new Rotation2d(33)), () -> new Pose2d(1, 1, new Rotation2d(33))));
         inputGetter = new InputGetter();
 		new InputSender();
         if(Constants.IS_MASTER) {
 			swerve = new Swerve(0);
-			PhotonVision.initializeMasterCamera();
+			// PhotonVision.initializeMasterCamera();
         } else {
 			swerve = new Swerve(1);
-			photonVision = new PhotonVision(swerve, CameraName.slave);
+			// photonVision = new PhotonVision(swerve, CameraName.slave);
 		}
-
+		swerve.setDefaultCommand(new IndependentDrive(swerve, () -> new Pose2d(1, 1, new Rotation2d(43)), () -> new Pose2d(1, 1, new Rotation2d(43)), () -> new Pose2d(1, 1, new Rotation2d(43))));
 		new Trigger(() -> inputGetter.getAButton()).onTrue(new IndependentDrive(swerve, () -> inputGetter.getLeftJoystick(), () -> inputGetter.getRightJoystick(), () -> inputGetter.getMasterOffset()));
 		new Trigger(() -> inputGetter.getBButton()).onTrue(new TandemDrive(swerve, inputGetter::getJoystickVelocity).ignoringDisable(true));
 		new Trigger(() -> inputGetter.getXButton()).onTrue(RobotConfig.reset());

@@ -6,9 +6,8 @@ URL="sparky@10.93.12.2" #todo: fix
 DESTINATION="/home/sparky/diffy-swerve-from-scratch/"
 
 echo "Deploying to $URL:$DESTINATION"
-scp -r ./ "$URL:$DESTINATION" # this kind of sucks a lot please use rsync
-scp `find 
+rsync -avz --exclude-from='.rsync-exclude' ./ $URL:$DESTINATION
 echo "Deployment complete!"
 
 echo "running remote sim and piping output to terminal..."
-ssh -t "$URL" "cd $DESTINATION && ./simulate.sh"
+ssh -t "$URL" "cd ./diffy-swerve-from-scratch && ./simulate.sh"

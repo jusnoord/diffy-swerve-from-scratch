@@ -4,15 +4,18 @@
 
 package frc.robot.subsystems;
 
+import static edu.wpi.first.units.Units.MetersPerSecond;
+
 import java.util.ArrayList;
 import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
+
+import javax.sound.sampled.Line;
 
 import org.photonvision.EstimatedRobotPose;
 
 import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.hardware.Pigeon2;
-import com.ctre.phoenix6.sim.Pigeon2SimState;
 import com.ctre.phoenix6.swerve.SwerveDrivetrain;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 
@@ -32,6 +35,8 @@ import edu.wpi.first.networktables.DoubleSubscriber;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructArrayPublisher;
 import edu.wpi.first.networktables.StructPublisher;
+import edu.wpi.first.units.LinearVelocityUnit;
+import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
@@ -49,8 +54,8 @@ import frc.robot.Robot;
 public class Swerve extends SubsystemBase {
 	private final Pigeon2 gyro;
 
-	private Pigeon2SimState gyroSimState;
 
+	
 	private final ArrayList<DrivePod> pods = new ArrayList<DrivePod>();
 
 	private final NERDPoseEstimator poseEstimator;
@@ -65,8 +70,8 @@ public class Swerve extends SubsystemBase {
 	StructPublisher<ChassisSpeeds> ChassisSpeedsPublisher;
 	DoubleEntry azimuthkPSub, azimuthkISub, azimuthkDSub, azimuthkSSub, azimuthkVSub, azimuthkASub;
 
-	double simGyroPosition = 0;
 
+	
 	public Swerve(int robot) {
 		SingleRobotConfig config = RobotConfig.robotConfigs[robot];
 		drivetrainKinematics = config.drivetrainKinematics;
@@ -115,9 +120,6 @@ public class Swerve extends SubsystemBase {
 			azimuthkDSub.getAtomic();
 		}
 
-		if (Robot.isSimulation()) {
-			gyroSimState = new Pigeon2SimState(gyro);
-		}
 	}
 
 	@Override
@@ -126,8 +128,9 @@ public class Swerve extends SubsystemBase {
 		poseEstimator.update(getGyro(), getModulePositions());
 
 		//update telemetry
-		SmartDashboard.putNumber("pigeon", getGyro().getDegrees());
-
+		SmartDashboard.putNumber("big balls", getGyro().getDegrees());
+		pods.get(0).azimuthMotor.set(1);
+		pods.get(1).setPodState(new SwerveModuleState(LinearVelocity.ofRelativeUnits(123, MetersPerSecond), Rotation2d.fromDegrees(24)));
 		field2d.setRobotPose(getPose());
 
 		SMSPublisher.set(getModuleStates());
@@ -247,12 +250,6 @@ public class Swerve extends SubsystemBase {
 		return pods;
 	}
 
-	@Override
-	public void simulationPeriodic() {
-		// update the gyro to functionally be the robot/odo angle
-		simGyroPosition += Units.radiansToDegrees(drivetrainKinematics.toChassisSpeeds(getModuleStates()).omegaRadiansPerSecond) * Robot.kDefaultPeriod;
-		gyroSimState.setRawYaw(simGyroPosition);
-	}
 
 	/**
 	 * accepts a vision measurement for pose estimation
