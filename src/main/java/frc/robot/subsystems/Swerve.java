@@ -125,14 +125,10 @@ public class Swerve extends SubsystemBase {
 
 	@Override
 	public void periodic() {
-		System.out.print("swerve periodic");
 		//update odometry
 		poseEstimator.update(getGyro(), getModulePositions());
 
 		//update telemetry
-		SmartDashboard.putNumber("big balls", getGyro().getDegrees());
-		pods.get(0).azimuthMotor.set(1);
-		pods.get(1).setPodState(new SwerveModuleState(LinearVelocity.ofRelativeUnits(123, MetersPerSecond), Rotation2d.fromDegrees(24)));
 		field2d.setRobotPose(getPose());
 
 		SMSPublisher.set(getModuleStates());

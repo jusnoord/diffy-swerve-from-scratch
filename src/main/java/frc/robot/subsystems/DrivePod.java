@@ -186,7 +186,7 @@ public class DrivePod extends SubsystemBase {
         CANcoder encoder = new CANcoder(id, "*");
 
         coderConfig.MagnetSensor.SensorDirection = inverted ? SensorDirectionValue.Clockwise_Positive : SensorDirectionValue.CounterClockwise_Positive;
-        coderConfig.MagnetSensor.MagnetOffset = -offset;
+        coderConfig.MagnetSensor.MagnetOffset = offset;
 
         //not applying magnet config directly in order to overwrite other settings
         encoder.getConfigurator().apply(coderConfig);
@@ -254,7 +254,7 @@ public class DrivePod extends SubsystemBase {
         azimuthMotor.setControl(anglePID.withPosition(state.angle.getRotations())); 
         speed = state.speedMetersPerSecond;
 
-        driveMotor.setVoltage(speed); 
+        driveMotor.set(speed); 
     }
 
     @Override
