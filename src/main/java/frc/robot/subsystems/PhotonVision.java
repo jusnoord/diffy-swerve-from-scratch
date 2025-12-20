@@ -5,6 +5,7 @@
 package frc.robot.subsystems;
 
 import static edu.wpi.first.units.Units.Degrees;
+import static edu.wpi.first.units.Units.Rotation;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,6 +43,7 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
 import frc.robot.Constants.RobotConstants;
 import frc.robot.Constants.RobotType;
+import frc.robot.Constants.VisionConstants;
 import frc.robot.Constants.RobotMap.CameraName;
 import frc.robot.util.Triplet;
 import frc.robot.util.Tuple;
@@ -110,10 +112,15 @@ public class PhotonVision extends SubsystemBase {
          */
     }
 
-    
-    private synchronized void updateVision() {
-        Tuple<Transform2d, Double> updates = camThread.getUpdates();
+     private synchronized void updateLocalVision(Tuple<Transform2d, Double> update) {
+        //should literally be as easy as feeding this transform into the local pose estimator?
+    }
+
+    private synchronized void updateGlobalVision(Tuple<Transform2d, Double> update) {
         timestampedMasterPoses.addAll(List.of(masterPoseSubscriber.readQueue()));
+        double robotToRobotDistance = 0; //grab from swerve? later
+
+        //idk ill have to think more about this later
 
         //trim timestampedMasterPoses to 10 values (for efficiency)
         if (timestampedMasterPoses.size() > 10) {
@@ -122,28 +129,35 @@ public class PhotonVision extends SubsystemBase {
 
         //find the master pose with the closest timestamp to the camera's timestamp
         //NT timestamps are measured in microseconds, PhotonVision timestamps are seconds. Mulitiply by one million to convert/
-        double visionTimeStampMicroSeconds = updates.v * 1000000d;
+        double visionTimeStampMicroSeconds = update.v * 1000000d;
         closestMasterPose = timestampedMasterPoses.stream()
             .min((a, b) -> Double.compare(Math.abs(a.serverTime - visionTimeStampMicroSeconds), Math.abs(b.serverTime - visionTimeStampMicroSeconds)))
             .map(pose -> pose.value)
             .orElse(null);
         
         
-        //account for tag-to-robot and camera-to-robot offsets and then combine vision measurement with master odometry positio
-        Transform2d visionTranslation = new Transform2d(updates.k.getTranslation().plus(RobotConstants.centerOfMasterToTag).rotateBy(drivetrain.getPose().getRotation()).rotateBy(Rotation2d.k180deg), updates.k.getRotation().unaryMinus().rotateBy(Rotation2d.kCW_90deg));//.rotateBy(Rotation2d.kCW_90deg));//.plus(new Rotation2d(Degrees.of(90))));
-        
+        //account for tag-to-robot and camera-to-robot offsets and then combine vision measurement with master odometry position
+        //hey so actually have zero clue how this works!!
+        Translation2d x = update.k.getTranslation().plus(RobotConstants.centerOfMasterToTag).rotateBy(drivetrain.getPose().getRotation()).rotateBy(Rotation2d.k180deg);
+        Rotation2d t = update.k.getRotation().unaryMinus().rotateBy(Rotation2d.kCW_90deg);
+        Transform2d visionTranslation = new Transform2d(x, t);
+
         Pose2d fieldRelativePose = new Pose2d(closestMasterPose.getTranslation().plus(visionTranslation.getTranslation()), closestMasterPose.getRotation().plus(visionTranslation.getRotation()));
 
 
         // add the master pose to the translation to get field-relative pose. 
         // grab the timestamp
         // grab the distance to the best tag
-        drivetrain.addVisionMeasurement(fieldRelativePose, updates.v, updates.k.getTranslation().getNorm());
+        drivetrain.addVisionMeasurement(fieldRelativePose, update.v, update.k.getTranslation().getNorm());
 
         posePublisher.accept(fieldRelativePose);
         pose = fieldRelativePose;
-
     }
+
+    private synchronized void updateWingVision(Tuple<Transform2d, Double> update) {
+        //literally no clue lol
+    }
+
 
 
     /**
@@ -206,6 +220,7 @@ public class PhotonVision extends SubsystemBase {
                         double numberOfResults = results.size(); //double to prevent integer division errors
                         double totalDistances = 0;
                         boolean hasTarget = false;
+                        double ambiguity = 0; //unused for now
 
                         //fundamentally, this loop updates the pose and distance for each result. It also logs the data to shuffleboard
                         //this is done in a thread-safe manner, as global variables are only updated at the end of the loop (no race conditions)
@@ -214,25 +229,81 @@ public class PhotonVision extends SubsystemBase {
                                 // the local hasTarget variable will turn true if ANY PipelineResult within this loop has a target
                                 hasTarget = true;
                                 timestamp = result.getTimestampSeconds();
+                                boolean tagIdentified = false;
 
-                                var multiTagUpdate = doMultiTagUpdate(result);
-                                if (multiTagUpdate.isPresent()) {
-                                    Tuple<Transform3d, Double> tuple = multiTagUpdate.get();
-                                    // Update the robotToTag transform and timestamp
-                                    robotToTag = tuple.k;
-                                    totalDistances += tuple.v;
-                                } else {
-                                    // grabs the best target from the result and sends to pose estimator, iFF the pose ambiguity is below a (hardcoded) threshold
-                                    if (!(result.getBestTarget().getPoseAmbiguity() > 0.5)) {
-                                        //grabs the target pose, relative to the camera, and compensates for the camera position
-                                        robotToTag = cameraPosition.plus(result.getBestTarget().getBestCameraToTarget());
+                                //primary tag isolation switch
+                                if(VisionConstants.RobotTagIDs.contains(result.getBestTarget().getFiducialId())) {
+                                    tagIdentified = true;
+                                    isolateToTagSet(result, VisionConstants.RobotTagIDs);
+
+                                    // try multi-tag first
+                                    var multiTagUpdate = doMultiTagUpdate(result);
+                                    if (multiTagUpdate.isPresent()) {
+                                        var tuple = multiTagUpdate.get();
+                                        robotToTag = tuple.k;
+                                        ambiguity = tuple.v;
                                     } else {
-                                        DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " pose ambiguity is high");
+                                        //fall back to single tag
+                                        var singleTagUpdate = doSingleTagUpdate(result);
+                                        if (singleTagUpdate.isPresent()) {
+                                            var tuple = singleTagUpdate.get();
+                                            robotToTag = tuple.k;
+                                            ambiguity = tuple.v;
+                                        } else {
+                                            //both methods failed
+                                            DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " both multi-tag and single-tag pose updates failed");
+                                            continue;
+                                        }
                                     }
 
-                                    // grabs the distance to the best target (for the latest set of result)
-                                    totalDistances += result.getBestTarget().getBestCameraToTarget().getTranslation().getNorm();
+                                    updateLocalVision(updates);
+                               } 
+                                
+                                if(VisionConstants.StationTagIDs.contains(result.getBestTarget().getFiducialId())) {
+                                    tagIdentified = true;
+                                    isolateToTagSet(result, VisionConstants.StationTagIDs);
+                                    // only single-tag for station tags
+                                    var singleTagUpdate = doSingleTagUpdate(result);
+                                    if (singleTagUpdate.isPresent()) {
+                                        var tuple = singleTagUpdate.get();
+                                        robotToTag = tuple.k;
+                                        ambiguity = tuple.v;
+                                    } else {
+                                        //single-tag method failed
+                                        DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " single-tag pose update failed for station tag");
+                                    }
+
+                                    updateGlobalVision(updates);                                    
+                                } 
+                                
+                                if(VisionConstants.WingTagIDs.contains(result.getBestTarget().getFiducialId())) {
+                                    tagIdentified = true;
+
+                                    isolateToTagSet(result, VisionConstants.WingTagIDs);
+                                    // only single-tag for wing tags
+                                    var singleTagUpdate = doSingleTagUpdate(result);
+                                    if (singleTagUpdate.isPresent()) {
+                                        var tuple = singleTagUpdate.get();
+                                        robotToTag = tuple.k;
+                                        ambiguity = tuple.v;
+                                    } else {
+                                        //single-tag method failed
+                                        DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " single-tag pose update failed for wing tag");
+                                    }
+
+                                    updateWingVision(updates);
                                 }
+
+                                if(!tagIdentified) {
+                                    System.out.println("[PhotonVision] INFO: " + camName.toString() + " ignoring tag ID " + result.getBestTarget().getFiducialId());
+                                }
+
+                                
+                                
+
+                                // grabs the distance to the best target (for the latest set of result)
+                                totalDistances += result.getBestTarget().getBestCameraToTarget().getTranslation().getNorm();
+
 
                                 hasTargetPublisher.set(true);
                                 targetsFoundPublisher.set(numberOfResults);
@@ -242,15 +313,6 @@ public class PhotonVision extends SubsystemBase {
                                 hasTargetPublisher.set(false);
                                 targetsFoundPublisher.set(0);
                             }
-                        }
-
-                        // averages distance over all results
-                        averageDistance = totalDistances / numberOfResults;
-                        updates = new Tuple<Transform2d, Double>(new Transform2d(robotToTag.getTranslation().toTranslation2d(), robotToTag.getRotation().toRotation2d()), timestamp);
-                        this.hasTarget = hasTarget;
-                        if (hasTarget) {
-                            //primary call to the synchronized method that sends vision updates to the drivetrain
-                            updateVision();
                         }
                     } catch (IndexOutOfBoundsException e) {
                         // if there are no results,
@@ -294,17 +356,43 @@ public class PhotonVision extends SubsystemBase {
         /**
          * Performs a multi-tag pose update using the given pipeline result.
          * @param result The pipeline result containing detected targets. ASSUMES NOT EMPTY!!
-         * @return An Optional containing the computed Transform3d and distance if successful; empty otherwise.
+         * @return An Optional containing the computed Transform3d and ambiguity if successful; empty otherwise.
          */
         private Optional<Tuple<Transform3d, Double>> doMultiTagUpdate(PhotonPipelineResult result) {
             if (result.multitagResult.isPresent()) {
                 var multiTag = result.multitagResult.get();
                 // Use getCameraToRobot() to get the transform from camera to robot
                 Transform3d cameraToRobot = multiTag.estimatedPose.best;
-                double distance = cameraToRobot.getTranslation().getNorm();
-                return Optional.of(new Tuple<Transform3d, Double>(cameraToRobot, distance));
+                double ambiguity = multiTag.estimatedPose.ambiguity;
+                return Optional.of(new Tuple<Transform3d, Double>(cameraToRobot, ambiguity));
             }
+            //else
+            DataLogManager.log("[PhotonVision] INFO: " + camName.toString() + " multitag result requested but not present");
             return Optional.empty();
+        }
+
+        private Optional<Tuple<Transform3d, Double>> doSingleTagUpdate(PhotonPipelineResult result) {
+            Transform3d robotToTag = new Transform3d();
+            double ambiguity;
+
+            // grabs the best target from the result and sends to pose estimator, iFF the pose ambiguity is below a (hardcoded) threshold
+            if (!(result.getBestTarget().getPoseAmbiguity() > 0.5)) {
+                //grabs the target pose, relative to the camera, and compensates for the camera position
+                robotToTag = cameraPosition.plus(result.getBestTarget().getBestCameraToTarget());
+                ambiguity = result.getBestTarget().getPoseAmbiguity();
+
+                return Optional.of(new Tuple<Transform3d, Double>(robotToTag, ambiguity));
+            } 
+            //else
+            DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " pose ambiguity is high");
+            return Optional.empty();
+        }
+
+        private PhotonPipelineResult isolateToTagSet(PhotonPipelineResult result, List<Integer> validTagIDs) {
+            // remove targets whose fiducialId is not in validTagIDs. i love arraylists :)
+            result.getTargets().removeIf(target -> !validTagIDs.contains(target.getFiducialId()));
+
+            return result;
         }
 
 
@@ -361,3 +449,45 @@ public class PhotonVision extends SubsystemBase {
     // }
 
 }
+
+
+
+
+    /* original single-camera vision update method
+    private synchronized void updateLocalVision() {
+        Tuple<EstimatedRobotPose, Double> update = camThread.getUpdates();
+        timestampedMasterPoses.addAll(List.of(masterPoseSubscriber.readQueue()));
+
+        //trim timestampedMasterPoses to 10 values (for efficiency)
+        if (timestampedMasterPoses.size() > 10) {
+            timestampedMasterPoses = timestampedMasterPoses.subList(timestampedMasterPoses.size() - 10, timestampedMasterPoses.size());
+        }
+
+        //find the master pose with the closest timestamp to the camera's timestamp
+        //NT timestamps are measured in microseconds, PhotonVision timestamps are seconds. Mulitiply by one million to convert/
+        double visionTimeStampMicroSeconds = update.v * 1000000d;
+        closestMasterPose = timestampedMasterPoses.stream()
+            .min((a, b) -> Double.compare(Math.abs(a.serverTime - visionTimeStampMicroSeconds), Math.abs(b.serverTime - visionTimeStampMicroSeconds)))
+            .map(pose -> pose.value)
+            .orElse(null);
+        
+        
+        //account for tag-to-robot and camera-to-robot offsets and then combine vision measurement with master odometry position
+        //hey so actually have zero clue how this works!!
+        Translation2d x = update.k.getTranslation().plus(RobotConstants.centerOfMasterToTag).rotateBy(drivetrain.getPose().getRotation()).rotateBy(Rotation2d.k180deg);
+        Rotation2d t = update.k.getRotation().unaryMinus().rotateBy(Rotation2d.kCW_90deg);
+        Transform2d visionTranslation = new Transform2d(x, t);
+
+        Pose2d fieldRelativePose = new Pose2d(closestMasterPose.getTranslation().plus(visionTranslation.getTranslation()), closestMasterPose.getRotation().plus(visionTranslation.getRotation()));
+
+
+        // add the master pose to the translation to get field-relative pose. 
+        // grab the timestamp
+        // grab the distance to the best tag
+        drivetrain.addVisionMeasurement(fieldRelativePose, update.v, update.k.getTranslation().getNorm());
+
+        posePublisher.accept(fieldRelativePose);
+        pose = fieldRelativePose;
+
+    }
+        */

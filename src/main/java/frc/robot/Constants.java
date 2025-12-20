@@ -8,6 +8,8 @@ import static edu.wpi.first.units.Units.Degrees;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -144,6 +146,16 @@ public final class Constants {
 		//forward, left, height; roll, pitch, yaw
 		public static final Translation2d centerOfMasterToTag = new Translation2d(0, 0.2102); // meters, distance from the center of the master robot to the tag
 		public static final Transform3d SLAVE_CAMERA_LOCATION = new Transform3d(new Translation3d(0.152, 0.1996, -0.015), new Rotation3d(Degrees.of(180), Degrees.of(0), Degrees.of(105)));
+	}
+
+
+	public final class VisionConstants {
+		//TODO: move vision stuff here
+
+		//TODO: fix these
+		public static final ArrayList<Integer> RobotTagIDs = new ArrayList<>(Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8));
+		public static final ArrayList<Integer> StationTagIDs = new ArrayList<>(Arrays.asList(9, 10, 11, 12));
+		public static final ArrayList<Integer> WingTagIDs = new ArrayList<>(Arrays.asList(13, 14, 15, 16));
 	}
 
 	/**
