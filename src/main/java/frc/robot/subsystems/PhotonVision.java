@@ -9,6 +9,7 @@ import static edu.wpi.first.units.Units.Degrees;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 
 import org.photonvision.EstimatedRobotPose;
 import org.photonvision.PhotonCamera;
@@ -212,18 +213,26 @@ public class PhotonVision extends SubsystemBase {
                             if (result.hasTargets()) {
                                 // the local hasTarget variable will turn true if ANY PipelineResult within this loop has a target
                                 hasTarget = true;
+                                timestamp = result.getTimestampSeconds();
 
-                                // grabs the best target from the result and sends to pose estimator, iFF the pose ambiguity is below a (hardcoded) threshold
-                                if (!(result.getBestTarget().getPoseAmbiguity() > 0.5)) {
-                                    //grabs the target pose, relative to the camera, and compensates for the camera position
-                                    robotToTag = cameraPosition.plus(result.getBestTarget().getBestCameraToTarget());
-                                    timestamp = result.getTimestampSeconds();
+                                var multiTagUpdate = doMultiTagUpdate(result);
+                                if (multiTagUpdate.isPresent()) {
+                                    Tuple<Transform3d, Double> tuple = multiTagUpdate.get();
+                                    // Update the robotToTag transform and timestamp
+                                    robotToTag = tuple.k;
+                                    totalDistances += tuple.v;
                                 } else {
-                                    DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " pose ambiguity is high");
-                                }
+                                    // grabs the best target from the result and sends to pose estimator, iFF the pose ambiguity is below a (hardcoded) threshold
+                                    if (!(result.getBestTarget().getPoseAmbiguity() > 0.5)) {
+                                        //grabs the target pose, relative to the camera, and compensates for the camera position
+                                        robotToTag = cameraPosition.plus(result.getBestTarget().getBestCameraToTarget());
+                                    } else {
+                                        DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " pose ambiguity is high");
+                                    }
 
-                                // grabs the distance to the best target (for the latest set of result)
-                                totalDistances += result.getBestTarget().getBestCameraToTarget().getTranslation().getNorm();
+                                    // grabs the distance to the best target (for the latest set of result)
+                                    totalDistances += result.getBestTarget().getBestCameraToTarget().getTranslation().getNorm();
+                                }
 
                                 hasTargetPublisher.set(true);
                                 targetsFoundPublisher.set(numberOfResults);
@@ -281,6 +290,24 @@ public class PhotonVision extends SubsystemBase {
         public boolean hasTarget() {
             return hasTarget;
         }
+
+        /**
+         * Performs a multi-tag pose update using the given pipeline result.
+         * @param result The pipeline result containing detected targets. ASSUMES NOT EMPTY!!
+         * @return An Optional containing the computed Transform3d and distance if successful; empty otherwise.
+         */
+        private Optional<Tuple<Transform3d, Double>> doMultiTagUpdate(PhotonPipelineResult result) {
+            if (result.multitagResult.isPresent()) {
+                var multiTag = result.multitagResult.get();
+                // Use getCameraToRobot() to get the transform from camera to robot
+                Transform3d cameraToRobot = multiTag.estimatedPose.best;
+                double distance = cameraToRobot.getTranslation().getNorm();
+                return Optional.of(new Tuple<Transform3d, Double>(cameraToRobot, distance));
+            }
+            return Optional.empty();
+        }
+
+
 
         private PhotonCamera getCameraObject() {
             return camera;

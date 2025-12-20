@@ -8,8 +8,6 @@
 # Prerequisites
 *.d
 
-# this one file i dont want
-TunerConstants.java
 
 # Compiled Object files
 *.slo
@@ -196,3 +194,11 @@ compile_commands.json
 # Eclipse generated file for annotation processors
 .factorypath
 
+
+# not in gitignore
+
+# this one file i dont want
+generated/
+
+# .git files
+.git/
