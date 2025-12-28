@@ -58,10 +58,11 @@ public class PhotonVision extends SubsystemBase {
     private SimCameraProperties cameraProp;
     private VisionTargetSim visionTarget;
 
-    List<TimestampedObject<Pose2d>> timestampedMasterPoses = new ArrayList<>();
+    List<TimestampedObject<Pose2d>> timestampedMasterPoses = new ArrayList<>(); // pull from NT depending on is_master
+    List<TimestampedObject<Pose2d>> timestampedSlavePoses = new ArrayList<>(); // pull from NT depending on is_master
 
     private StructPublisher<Pose2d> posePublisher;
-    private StructSubscriber<Pose2d> masterPoseSubscriber;
+    private StructSubscriber<Pose2d> masterPoseSubscriber; // TODO: balance the NT publishing between master and slave
 
     private HashMap<Double, Pose2d> masterPoses = new HashMap<>();
 
@@ -112,11 +113,12 @@ public class PhotonVision extends SubsystemBase {
          */
     }
 
-     private synchronized void updateLocalVision(Tuple<Transform2d, Double> update) {
-        //should literally be as easy as feeding this transform into the local pose estimator?
-    }
-
-    private synchronized void updateGlobalVision(Tuple<Transform2d, Double> update) {
+    /** 
+     * @param timestamp time in seconds
+     * @return master absolute position at time timestamp
+     */
+    Pose2d getMasterPosition(Double timestamp) {
+        
         timestampedMasterPoses.addAll(List.of(masterPoseSubscriber.readQueue()));
         double robotToRobotDistance = 0; //grab from swerve? later
 
@@ -129,33 +131,189 @@ public class PhotonVision extends SubsystemBase {
 
         //find the master pose with the closest timestamp to the camera's timestamp
         //NT timestamps are measured in microseconds, PhotonVision timestamps are seconds. Mulitiply by one million to convert/
-        double visionTimeStampMicroSeconds = update.v * 1000000d;
+        double visionTimeStampMicroSeconds = timestamp * 1000000d;
         closestMasterPose = timestampedMasterPoses.stream()
             .min((a, b) -> Double.compare(Math.abs(a.serverTime - visionTimeStampMicroSeconds), Math.abs(b.serverTime - visionTimeStampMicroSeconds)))
             .map(pose -> pose.value)
             .orElse(null);
         
+        return closestMasterPose;
         
-        //account for tag-to-robot and camera-to-robot offsets and then combine vision measurement with master odometry position
-        //hey so actually have zero clue how this works!!
-        Translation2d x = update.k.getTranslation().plus(RobotConstants.centerOfMasterToTag).rotateBy(drivetrain.getPose().getRotation()).rotateBy(Rotation2d.k180deg);
-        Rotation2d t = update.k.getRotation().unaryMinus().rotateBy(Rotation2d.kCW_90deg);
-        Transform2d visionTranslation = new Transform2d(x, t);
-
-        Pose2d fieldRelativePose = new Pose2d(closestMasterPose.getTranslation().plus(visionTranslation.getTranslation()), closestMasterPose.getRotation().plus(visionTranslation.getRotation()));
-
-
-        // add the master pose to the translation to get field-relative pose. 
-        // grab the timestamp
-        // grab the distance to the best tag
-        drivetrain.addVisionMeasurement(fieldRelativePose, update.v, update.k.getTranslation().getNorm());
-
-        posePublisher.accept(fieldRelativePose);
-        pose = fieldRelativePose;
     }
 
+    /** 
+     * @param timestamp time in seconds
+     * @return master absolute position at time timestamp
+     */
+    Pose2d getSlavePosition(Double timestamp) {
+        
+        timestampedSlavePoses.addAll(List.of(masterPoseSubscriber.readQueue()));
+        double robotToRobotDistance = 0; //grab from swerve? later
+
+        //idk ill have to think more about this later
+
+        //trim timestampedSlavePoses to 10 values (for efficiency)
+        if (timestampedSlavePoses.size() > 10) {
+            timestampedSlavePoses = timestampedSlavePoses.subList(timestampedSlavePoses.size() - 10, timestampedSlavePoses.size());
+        }
+
+        //find the master pose with the closest timestamp to the camera's timestamp
+        //NT timestamps are measured in microseconds, PhotonVision timestamps are seconds. Mulitiply by one million to convert/
+        double visionTimeStampMicroSeconds = timestamp * 1000000d;
+        closestMasterPose = timestampedSlavePoses.stream()
+            .min((a, b) -> Double.compare(Math.abs(a.serverTime - visionTimeStampMicroSeconds), Math.abs(b.serverTime - visionTimeStampMicroSeconds)))
+            .map(pose -> pose.value)
+            .orElse(null);
+        
+        return closestMasterPose;
+        
+    }
+
+    /** 
+     * @param timestamp time in seconds
+     * @return master absolute position at time timestamp
+     */
+    Pose2d getCurrentRobotPosition(Double timestamp) {
+        if (Constants.IS_MASTER) {
+            return getMasterPosition(timestamp);
+        } else {
+            return getSlavePosition(timestamp);
+        }
+    }
+
+    /** 
+     * @param timestamp time in seconds
+     * @return master absolute position at time timestamp
+     */
+    Pose2d getOtherRobotPosition(Double timestamp) {
+        if (Constants.IS_MASTER) {
+            return getSlavePosition(timestamp);
+        } else {
+            return getMasterPosition(timestamp);
+        }
+    }
+
+    /** 
+     * @param pose absolute pose of robot to inject into kalman filter
+     * @param timestamp time of pose update, in seconds
+     * @param ambiguity proportional measure of uncertainty, usually just distance in meters
+     * this function will additionally update the master-centric wing estimator to match
+     */
+    void updateMaster(Pose2d pose, Double timestamp, double ambiguity) {
+        //TODO
+    }
+    
+    /** 
+     * @param pose absolute pose of robot to inject into kalman filter
+     * @param timestamp time of pose update, in seconds
+     * @param ambiguity proportional measure of uncertainty, usually just distance in meters
+     * this function will additionally update the slave-centric wing estimator to match
+     */
+    void updateSlave(Pose2d pose, Double time, double ambiguity) {
+        // TODO
+    }
+    
+    /** 
+     * @param pose absolute pose of robot to inject into kalman filter
+     * @param timestamp time of pose update, in seconds 
+     * @param ambiguity proportional measure of uncertainty, usually just distance in meters
+     * this function will additionally update the robot-centric wing estimator to match
+     */
+    void updateCurrentRobot(Pose2d pose, Double time, double ambiguity) {
+        drivetrain.addVisionMeasurement(pose, ambiguity, ambiguity);
+    }
+
+    /** 
+     * @param pose absolute pose of robot to inject into kalman filter
+     * @param timestamp time of pose update, in seconds 
+     * @param ambiguity proportional measure of uncertainty, usually just distance in meters
+     * this function will additionally update the robot-centric wing estimator to match
+     */
+    void updateOtherRobot(Pose2d pose, Double time, double ambiguity) {
+        if (Constants.IS_MASTER) {
+            updateSlave(pose, time, ambiguity);
+        } else {
+            updateMaster(pose, time, ambiguity);
+        }
+    }
+
+    /** 
+     * @param pose absolute pose of wing to inject into kalman filter
+     * @param timestamp time of pose update, in seconds (does not matter because wing does not have odometry)
+     * @param ambiguity proportional measure of uncertainty, usually just distance in meters
+     * this function will additionally update the robot-centric wing estimator to match
+     */
+    void updateCurrentRobotWingEstimate(Pose2d pose, Double time, double ambiguity) {
+        // TODO
+    }
+
+    /** 
+     * updates both the master and slave equally in opposite directions
+     * updates masterWing and slaveWing pose to follow
+     * requires master pose, slave pose, slave/master new pose
+     * 
+     * Notes:
+     * calculated exclusively on master and sent to slave
+     * used for offsets between robots
+     * @param update measured displacement between robots along with timestamp of measurement
+     */
+    private synchronized void updateLocalVision(Tuple<Transform2d, Double> update) {
+        assert(Constants.IS_MASTER);
+
+        Double timestamp = update.v;
+        double ambiguity = update.k.getTranslation().getNorm();
+
+        Pose2d masterPosition = getMasterPosition(timestamp);
+        Pose2d slavePosition = getSlavePosition(timestamp);
+
+        Transform2d measuredDisplacement = update.k;
+        Transform2d currentDisplacement = masterPosition.minus(slavePosition);
+        Transform2d difference = currentDisplacement.plus(measuredDisplacement.inverse());
+
+        Pose2d newMasterPose = masterPosition.plus(difference.times(0.5));
+        Pose2d newSlavePose = slavePosition.plus(difference.times(-0.5));
+        updateMaster(newMasterPose,timestamp,ambiguity);
+        updateSlave(newSlavePose,timestamp,ambiguity);
+    }
+
+    /** 
+     * updates master, slave, and wing poses equally
+     * requires current robot absolute vision measurement and current robot pose
+     * 
+     * Notes:
+     * calculates residual as intermediate step and sends residual to all estimators for update
+     * used for global wall tags
+     * @param update measured absolute position of current robot along with timestamp of measurement
+     */
+    private synchronized void updateGlobalVision(Tuple<Transform2d, Double> update) {
+        Pose2d currentRobotPose = getCurrentRobotPosition(update.v);
+
+        Pose2d displacement= currentRobotPose.plus(update.k.inverse());
+        
+        Pose2d otherRobotPose = getOtherRobotPosition(update.v);
+
+        Transform2d otherRobotNewPose = otherRobotPose.minus(displacement.times(-1));
+
+        updateCurrentRobot(new Pose2d(update.k.getTranslation(), update.k.getRotation()), update.v, update.k.getTranslation().getNorm()); // TODO: this pose2d and transform2d math is definitely wrong
+        updateOtherRobot(otherRobotPose, update.v, update.k.getTranslation().getNorm());
+
+        // TODO: fix global variables not being updated anywhere
+        // posePublisher.accept(fieldRelativePose);
+        // pose = fieldRelativePose;
+    }
+
+    /**
+     * updates only the wing pose relative to the current robot
+     * requires current pose and robot to wing offset
+     * 
+     * Notes:
+     * each robot has an independent wing pose estimator 
+     * used for wing-specific tags
+     */
     private synchronized void updateWingVision(Tuple<Transform2d, Double> update) {
-        //literally no clue lol
+        Pose2d currentRobotPose = getCurrentRobotPosition(update.v);
+        Pose2d wingPose = currentRobotPose.plus(update.k);
+        updateCurrentRobotWingEstimate(wingPose, update.v, update.k.getTranslation().getNorm());
     }
 
 
@@ -256,7 +414,12 @@ public class PhotonVision extends SubsystemBase {
                                         }
                                     }
 
-                                    updateLocalVision(updates);
+                                    //account for tag-to-robot and camera-to-robot offsets and then combine vision measurement with master odometry position
+                                    // magical transform that possibly does not work anymore because new robot
+                                    Translation2d x = updates.k.getTranslation().plus(RobotConstants.centerOfMasterToTag).rotateBy(drivetrain.getPose().getRotation()).rotateBy(Rotation2d.k180deg);
+                                    Rotation2d t = updates.k.getRotation().unaryMinus().rotateBy(Rotation2d.kCW_90deg);
+                                    Transform2d visionDisplacement = new Transform2d(x, t);
+                                    updateLocalVision(new Tuple<>(visionDisplacement, updates.v));
                                } 
                                 
                                 if(VisionConstants.StationTagIDs.contains(result.getBestTarget().getFiducialId())) {
