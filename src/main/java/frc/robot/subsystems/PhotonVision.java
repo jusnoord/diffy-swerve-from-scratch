@@ -12,6 +12,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
+import org.opencv.core.Mat;
+import org.opencv.video.KalmanFilter;
 import org.photonvision.EstimatedRobotPose;
 import org.photonvision.PhotonCamera;
 import org.photonvision.PhotonPoseEstimator;
@@ -24,6 +26,7 @@ import org.photonvision.targeting.PhotonPipelineResult;
 import org.photonvision.targeting.PhotonTrackedTarget;
 
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
+import edu.wpi.first.math.estimator.PoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -31,6 +34,8 @@ import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
+import edu.wpi.first.math.kinematics.Odometry;
+import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.networktables.BooleanPublisher;
 import edu.wpi.first.networktables.DoublePublisher;
 import edu.wpi.first.networktables.NetworkTableInstance;
@@ -56,18 +61,15 @@ import frc.robot.util.Tuple;
 public class PhotonVision extends SubsystemBase {
     public static Pose2d closestOtherPose = new Pose2d();
 
-    private SimCameraProperties cameraProp;
-    private VisionTargetSim visionTarget;
-
     List<TimestampedObject<Pose2d>> timestampedCurrentPoses = new ArrayList<>(); // pull from NT depending on is_master
     List<TimestampedObject<Pose2d>> timestampedOtherPoses = new ArrayList<>(); // pull from NT depending on is_master
 
-    private StructPublisher<Pose2d> posePublisher; // needs to be used somewhere i htink
-    private StructSubscriber<Pose2d> poseSubscriber; // TODO: balance the NT publishing between master and slave
-
-    private HashMap<Double, Pose2d> masterPoses = new HashMap<>();
+    private StructPublisher<Pose2d> posePublisher, updateRequestPublisher, offsetPublisher; // needs to be used somewhere i htink
+    private StructSubscriber<Pose2d> poseSubscriber, updateRequestSubscriber, offsetSubscriber; // TODO: balance the NT publishing between master and slave
 
     public Pose2d pose = new Pose2d();
+
+    public KalmanFilter wingEstimator = new KalmanFilter(3, 3);
 
     private Swerve drivetrain;
 
@@ -79,11 +81,19 @@ public class PhotonVision extends SubsystemBase {
         camThread = new CameraThread(camName, RobotConstants.SLAVE_CAMERA_LOCATION);
         camThread.start();
 
-        //this code grabs the pose from the other robot
         poseSubscriber = NetworkTableInstance.getDefault().getTable(Constants.currentRobot.getOpposite().toString()).getStructTopic("RobotPose", Pose2d.struct).subscribe(new Pose2d());
         
-        //initilize telemetry
-        posePublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("full pose", Pose2d.struct).publish();       
+        posePublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("RobotPose", Pose2d.struct).publish();   
+        
+        updateRequestSubscriber = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.getOpposite().toString()).getStructTopic("update requests", Pose2d.struct).subscribe(new Pose2d());
+        
+        updateRequestPublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("update requests", Pose2d.struct).publish();
+        
+        if (Constants.IS_MASTER) {
+            offsetSubscriber = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.RobotType.slave.toString()).getStructTopic("offsets", Pose2d.struct).subscribe(new Pose2d());
+        } else {
+            offsetPublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.RobotType.slave.toString()).getStructTopic("offsets", Pose2d.struct).publish();
+        }
     }
 
     /**
@@ -194,7 +204,7 @@ public class PhotonVision extends SubsystemBase {
      * this function will additionally update the robot-centric wing estimator to match
      */
     void updateCurrentRobot(Pose2d pose, Double time, double ambiguity) {
-        drivetrain.addVisionMeasurement(pose, ambiguity, ambiguity);
+        drivetrain.addVisionMeasurement(pose, time, ambiguity);
     }
 
     /** 
@@ -204,7 +214,7 @@ public class PhotonVision extends SubsystemBase {
      * this function will additionally update the robot-centric wing estimator to match
      */
     void updateOtherRobot(Pose2d pose, Double time, double ambiguity) {
-        // TODO
+        updateRequestPublisher.set(pose, time.longValue());
     }
 
     /** 
@@ -214,7 +224,13 @@ public class PhotonVision extends SubsystemBase {
      * this function will additionally update the robot-centric wing estimator to match
      */
     void updateCurrentRobotWingEstimate(Pose2d pose, Double time, double ambiguity) {
-        // TODO
+        Mat poseMatrix = new Mat(3, 1, 0);
+        poseMatrix.put(0, 0, pose.getX());
+        poseMatrix.put(1, 0, pose.getY());
+        poseMatrix.put(2, 0, pose.getRotation().getDegrees());
+        wingEstimator.correct(poseMatrix);
+
+        // TODO THIS IS TOTALLY WRONG I THINJ
     }
 
     /** 
@@ -246,10 +262,19 @@ public class PhotonVision extends SubsystemBase {
             updateMaster(newMasterPose,timestamp,ambiguity);
             updateSlave(newSlavePose,timestamp,ambiguity);
         } else {
+            assert(!Constants.IS_MASTER);
             // send vision offset data to master to process
-
-            
+            updateRequestPublisher.set(new Pose2d(update.k.getTranslation(), update.k.getRotation()), update.v.longValue());            
         }
+    }
+
+    private Pose2d getTagPose(int tagID) {
+        return new Pose2d(); // TODO: DO SOMETHING LAH
+    }
+
+    private synchronized void updateGlobalVision(Tuple<Transform2d, Double> update, int tagID) {
+        Tuple<Pose2d, Double> absolutePosition = new Tuple<Pose2d,Double>(getTagPose(tagID).plus(update.k), update.v);
+        updateGlobalVision(absolutePosition);
     }
 
     /** 
@@ -261,23 +286,21 @@ public class PhotonVision extends SubsystemBase {
      * used for global wall tags
      * @param update measured absolute position of current robot along with timestamp of measurement
      */
-    private synchronized void updateGlobalVision(Tuple<Transform2d, Double> update) {
+    private synchronized void updateGlobalVision(Tuple<Pose2d, Double> update) {
         Pose2d currentRobotPose = getCurrentRobotPosition(update.v);
 
-        Pose2d displacement= currentRobotPose.plus(update.k.inverse());
+        Transform2d displacement= currentRobotPose.minus(update.k);
         
         Pose2d otherRobotPose = getOtherRobotPosition(update.v);
 
-        Transform2d otherRobotNewTransform = otherRobotPose.minus(displacement.times(-1));
-
-        Pose2d otherRobotNewPose = new Pose2d(otherRobotNewTransform.getTranslation(), otherRobotNewTransform.getRotation());
+        Pose2d otherRobotNewPose = otherRobotPose.plus(displacement);
 
         updateCurrentRobot(new Pose2d(update.k.getTranslation(), update.k.getRotation()), update.v, update.k.getTranslation().getNorm()); // TODO: this pose2d and transform2d math is definitely wrong
         updateOtherRobot(otherRobotNewPose, update.v, update.k.getTranslation().getNorm());
 
         // TODO: fix global variables not being updated anywhere
-        // posePublisher.accept(fieldRelativePose);
-        // pose = fieldRelativePose;
+        posePublisher.accept(update.k);
+        pose = update.k;
     }
 
     /**
@@ -287,6 +310,7 @@ public class PhotonVision extends SubsystemBase {
      * Notes:
      * each robot has an independent wing pose estimator 
      * used for wing-specific tags
+     * @param update measured displacement between robot and wing along with timestamp of measurement
      */
     private synchronized void updateWingVision(Tuple<Transform2d, Double> update) {
         Pose2d currentRobotPose = getCurrentRobotPosition(update.v);
@@ -400,7 +424,7 @@ public class PhotonVision extends SubsystemBase {
                                 Translation2d x = updates.k.getTranslation().plus(RobotConstants.centerOfMasterToTag).rotateBy(drivetrain.getPose().getRotation()).rotateBy(Rotation2d.k180deg);
                                 Rotation2d t = updates.k.getRotation().unaryMinus().rotateBy(Rotation2d.kCW_90deg);
                                 Transform2d visionDisplacement = new Transform2d(x, t);
-                                updateLocalVision(new Tuple<>(visionDisplacement, updates.v));
+                                updateLocalVision(new Tuple<>(visionDisplacement, updates.v)); // TODO: trigger based on offsetSubscriber
                             } 
                             
                             if(VisionConstants.StationTagIDs.contains(target.getFiducialId())) {
@@ -416,7 +440,7 @@ public class PhotonVision extends SubsystemBase {
                                     DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " single-tag pose update failed for station tag");
                                 }
 
-                                updateGlobalVision(updates);                                    
+                                updateGlobalVision(updates, target.getFiducialId()); // TODO: specify which tag or something cuz we have insufficient information right now                               
                             } 
                             
                             if(VisionConstants.WingTagIDs.contains(target.getFiducialId())) {
@@ -456,7 +480,7 @@ public class PhotonVision extends SubsystemBase {
                         targetsFoundPublisher.set(numberOfResults);
                     }
                 }
-
+                // TODO: update based on updateSubscriber and offsetSubscriber
                 try {
                     sleep(5);
                 } catch (InterruptedException e) {
