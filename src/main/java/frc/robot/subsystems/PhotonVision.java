@@ -53,16 +53,16 @@ import frc.robot.util.Tuple;
  * Handles vision processing, pose updates, and communication with drivetrain.
  */
 public class PhotonVision extends SubsystemBase {
-    public static Pose2d closestMasterPose = new Pose2d();
+    public static Pose2d closestOtherPose = new Pose2d();
 
     private SimCameraProperties cameraProp;
     private VisionTargetSim visionTarget;
 
-    List<TimestampedObject<Pose2d>> timestampedMasterPoses = new ArrayList<>(); // pull from NT depending on is_master
-    List<TimestampedObject<Pose2d>> timestampedSlavePoses = new ArrayList<>(); // pull from NT depending on is_master
+    List<TimestampedObject<Pose2d>> timestampedCurrentPoses = new ArrayList<>(); // pull from NT depending on is_master
+    List<TimestampedObject<Pose2d>> timestampedOtherPoses = new ArrayList<>(); // pull from NT depending on is_master
 
-    private StructPublisher<Pose2d> posePublisher;
-    private StructSubscriber<Pose2d> masterPoseSubscriber; // TODO: balance the NT publishing between master and slave
+    private StructPublisher<Pose2d> posePublisher; // needs to be used somewhere i htink
+    private StructSubscriber<Pose2d> poseSubscriber; // TODO: balance the NT publishing between master and slave
 
     private HashMap<Double, Pose2d> masterPoses = new HashMap<>();
 
@@ -78,10 +78,8 @@ public class PhotonVision extends SubsystemBase {
         camThread = new CameraThread(camName, RobotConstants.SLAVE_CAMERA_LOCATION);
         camThread.start();
 
-        //this code grabs the pose from the master robot, and thus should only run on slave(s)
-        if(!Constants.IS_MASTER) {
-            masterPoseSubscriber = NetworkTableInstance.getDefault().getTable(Constants.RobotType.master.toString()).getStructTopic("RobotPose", Pose2d.struct).subscribe(new Pose2d());
-        }
+        //this code grabs the pose from the other robot
+        poseSubscriber = NetworkTableInstance.getDefault().getTable(Constants.currentRobot.getOpposite().toString()).getStructTopic("RobotPose", Pose2d.struct).subscribe(new Pose2d());
         
         //initilize telemetry
         posePublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("full pose", Pose2d.struct).publish();       
@@ -118,27 +116,7 @@ public class PhotonVision extends SubsystemBase {
      * @return master absolute position at time timestamp
      */
     Pose2d getMasterPosition(Double timestamp) {
-        
-        timestampedMasterPoses.addAll(List.of(masterPoseSubscriber.readQueue()));
-        double robotToRobotDistance = 0; //grab from swerve? later
-
-        //idk ill have to think more about this later
-
-        //trim timestampedMasterPoses to 10 values (for efficiency)
-        if (timestampedMasterPoses.size() > 10) {
-            timestampedMasterPoses = timestampedMasterPoses.subList(timestampedMasterPoses.size() - 10, timestampedMasterPoses.size());
-        }
-
-        //find the master pose with the closest timestamp to the camera's timestamp
-        //NT timestamps are measured in microseconds, PhotonVision timestamps are seconds. Mulitiply by one million to convert/
-        double visionTimeStampMicroSeconds = timestamp * 1000000d;
-        closestMasterPose = timestampedMasterPoses.stream()
-            .min((a, b) -> Double.compare(Math.abs(a.serverTime - visionTimeStampMicroSeconds), Math.abs(b.serverTime - visionTimeStampMicroSeconds)))
-            .map(pose -> pose.value)
-            .orElse(null);
-        
-        return closestMasterPose;
-        
+        return (Constants.IS_MASTER) ? getCurrentRobotPosition(timestamp) : getOtherRobotPosition(timestamp);
     }
 
     /** 
@@ -146,27 +124,7 @@ public class PhotonVision extends SubsystemBase {
      * @return master absolute position at time timestamp
      */
     Pose2d getSlavePosition(Double timestamp) {
-        
-        timestampedSlavePoses.addAll(List.of(masterPoseSubscriber.readQueue()));
-        double robotToRobotDistance = 0; //grab from swerve? later
-
-        //idk ill have to think more about this later
-
-        //trim timestampedSlavePoses to 10 values (for efficiency)
-        if (timestampedSlavePoses.size() > 10) {
-            timestampedSlavePoses = timestampedSlavePoses.subList(timestampedSlavePoses.size() - 10, timestampedSlavePoses.size());
-        }
-
-        //find the master pose with the closest timestamp to the camera's timestamp
-        //NT timestamps are measured in microseconds, PhotonVision timestamps are seconds. Mulitiply by one million to convert/
-        double visionTimeStampMicroSeconds = timestamp * 1000000d;
-        closestMasterPose = timestampedSlavePoses.stream()
-            .min((a, b) -> Double.compare(Math.abs(a.serverTime - visionTimeStampMicroSeconds), Math.abs(b.serverTime - visionTimeStampMicroSeconds)))
-            .map(pose -> pose.value)
-            .orElse(null);
-        
-        return closestMasterPose;
-        
+        return (!Constants.IS_MASTER) ? getCurrentRobotPosition(timestamp) : getOtherRobotPosition(timestamp);
     }
 
     /** 
@@ -174,11 +132,7 @@ public class PhotonVision extends SubsystemBase {
      * @return master absolute position at time timestamp
      */
     Pose2d getCurrentRobotPosition(Double timestamp) {
-        if (Constants.IS_MASTER) {
-            return getMasterPosition(timestamp);
-        } else {
-            return getSlavePosition(timestamp);
-        }
+        return drivetrain.getPose();
     }
 
     /** 
@@ -186,11 +140,22 @@ public class PhotonVision extends SubsystemBase {
      * @return master absolute position at time timestamp
      */
     Pose2d getOtherRobotPosition(Double timestamp) {
-        if (Constants.IS_MASTER) {
-            return getSlavePosition(timestamp);
-        } else {
-            return getMasterPosition(timestamp);
+        timestampedOtherPoses.addAll(List.of(poseSubscriber.readQueue()));
+
+        //trim timestampedMasterPoses to 10 values (for efficiency)
+        if (timestampedOtherPoses.size() > 10) {
+            timestampedOtherPoses = timestampedOtherPoses.subList(timestampedOtherPoses.size() - 10, timestampedOtherPoses.size());
         }
+
+        //find the master pose with the closest timestamp to the camera's timestamp
+        //NT timestamps are measured in microseconds, PhotonVision timestamps are seconds. Mulitiply by one million to convert/
+        double visionTimeStampMicroSeconds = timestamp * 1000000d;
+        closestOtherPose = timestampedOtherPoses.stream()
+            .min((a, b) -> Double.compare(Math.abs(a.serverTime - visionTimeStampMicroSeconds), Math.abs(b.serverTime - visionTimeStampMicroSeconds)))
+            .map(pose -> pose.value)
+            .orElse(null);
+        
+        return closestOtherPose;
     }
 
     /** 
@@ -200,7 +165,11 @@ public class PhotonVision extends SubsystemBase {
      * this function will additionally update the master-centric wing estimator to match
      */
     void updateMaster(Pose2d pose, Double timestamp, double ambiguity) {
-        //TODO
+        if (Constants.IS_MASTER) {
+            updateCurrentRobot(pose, timestamp, ambiguity);
+        } else {
+            updateOtherRobot(pose, timestamp, ambiguity);
+        } 
     }
     
     /** 
@@ -209,8 +178,12 @@ public class PhotonVision extends SubsystemBase {
      * @param ambiguity proportional measure of uncertainty, usually just distance in meters
      * this function will additionally update the slave-centric wing estimator to match
      */
-    void updateSlave(Pose2d pose, Double time, double ambiguity) {
-        // TODO
+    void updateSlave(Pose2d pose, Double timestamp, double ambiguity) {
+        if (Constants.IS_MASTER) {
+            updateOtherRobot(pose, timestamp, ambiguity);
+        } else {
+            updateCurrentRobot(pose, timestamp, ambiguity);
+        } 
     }
     
     /** 
@@ -230,11 +203,7 @@ public class PhotonVision extends SubsystemBase {
      * this function will additionally update the robot-centric wing estimator to match
      */
     void updateOtherRobot(Pose2d pose, Double time, double ambiguity) {
-        if (Constants.IS_MASTER) {
-            updateSlave(pose, time, ambiguity);
-        } else {
-            updateMaster(pose, time, ambiguity);
-        }
+        // TODO
     }
 
     /** 
@@ -258,22 +227,28 @@ public class PhotonVision extends SubsystemBase {
      * @param update measured displacement between robots along with timestamp of measurement
      */
     private synchronized void updateLocalVision(Tuple<Transform2d, Double> update) {
-        assert(Constants.IS_MASTER);
+        if (Constants.IS_MASTER) {
+            // update pose estimates for both master and slave
 
-        Double timestamp = update.v;
-        double ambiguity = update.k.getTranslation().getNorm();
+            Double timestamp = update.v;
+            double ambiguity = update.k.getTranslation().getNorm();
 
-        Pose2d masterPosition = getMasterPosition(timestamp);
-        Pose2d slavePosition = getSlavePosition(timestamp);
+            Pose2d masterPosition = getMasterPosition(timestamp);
+            Pose2d slavePosition = getSlavePosition(timestamp);
 
-        Transform2d measuredDisplacement = update.k;
-        Transform2d currentDisplacement = masterPosition.minus(slavePosition);
-        Transform2d difference = currentDisplacement.plus(measuredDisplacement.inverse());
+            Transform2d measuredDisplacement = update.k;
+            Transform2d currentDisplacement = masterPosition.minus(slavePosition);
+            Transform2d difference = currentDisplacement.plus(measuredDisplacement.inverse());
 
-        Pose2d newMasterPose = masterPosition.plus(difference.times(0.5));
-        Pose2d newSlavePose = slavePosition.plus(difference.times(-0.5));
-        updateMaster(newMasterPose,timestamp,ambiguity);
-        updateSlave(newSlavePose,timestamp,ambiguity);
+            Pose2d newMasterPose = masterPosition.plus(difference.times(0.5));
+            Pose2d newSlavePose = slavePosition.plus(difference.times(-0.5));
+            updateMaster(newMasterPose,timestamp,ambiguity);
+            updateSlave(newSlavePose,timestamp,ambiguity);
+        } else {
+            // send vision offset data to master to process
+
+            
+        }
     }
 
     /** 
@@ -292,10 +267,12 @@ public class PhotonVision extends SubsystemBase {
         
         Pose2d otherRobotPose = getOtherRobotPosition(update.v);
 
-        Transform2d otherRobotNewPose = otherRobotPose.minus(displacement.times(-1));
+        Transform2d otherRobotNewTransform = otherRobotPose.minus(displacement.times(-1));
+
+        Pose2d otherRobotNewPose = new Pose2d(otherRobotNewTransform.getTranslation(), otherRobotNewTransform.getRotation());
 
         updateCurrentRobot(new Pose2d(update.k.getTranslation(), update.k.getRotation()), update.v, update.k.getTranslation().getNorm()); // TODO: this pose2d and transform2d math is definitely wrong
-        updateOtherRobot(otherRobotPose, update.v, update.k.getTranslation().getNorm());
+        updateOtherRobot(otherRobotNewPose, update.v, update.k.getTranslation().getNorm());
 
         // TODO: fix global variables not being updated anywhere
         // posePublisher.accept(fieldRelativePose);

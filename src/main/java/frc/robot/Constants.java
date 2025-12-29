@@ -40,7 +40,11 @@ public final class Constants {
     public static final boolean IS_MASTER = !MASTER_PATH.toFile().exists();
 	//TODO: phase out if statements and replace them with switches w/ this enum
 	public static enum RobotType {
-		master, slave
+		master, slave;
+
+		public RobotType getOpposite() {
+			return this == master ? slave : master;
+		}
 	} 
 
 	public static RobotType currentRobot = IS_MASTER ? RobotType.master : RobotType.slave;
