@@ -357,7 +357,6 @@ public class PhotonVision extends SubsystemBase {
 
         @Override
         public void run() {
-            if(Constants.IS_MASTER) return;
             try {
                 //wait for the camera to bootup before initialization
                 sleep(3000);
@@ -479,6 +478,17 @@ public class PhotonVision extends SubsystemBase {
                         timestampPublisher.set(result.getTimestampSeconds());
                         targetsFoundPublisher.set(numberOfResults);
                     }
+
+                    List<TimestampedObject<Pose2d>> timestampedOffsets = List.of(offsetSubscriber.readQueue()); 
+                    for (TimestampedObject<Pose2d> to : timestampedOffsets) {
+                        updateCurrentRobot(to.value, to.serverTime / 1e6, to.value.getTranslation().getNorm());
+                    }
+
+                    List<TimestampedObject<Pose2d>> timestampedUpdateRequests = List.of(updateRequestSubscriber.readQueue());
+                    for (TimestampedObject<Pose2d> tur : timestampedUpdateRequests) {
+                        updateCurrentRobot(tur.value, tur.serverTime / 1e6, tur.value.getTranslation().getNorm());
+                    }
+                    
                 }
                 // TODO: update based on updateSubscriber and offsetSubscriber
                 try {
