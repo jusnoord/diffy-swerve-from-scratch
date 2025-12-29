@@ -21,6 +21,7 @@ import org.photonvision.simulation.SimCameraProperties;
 import org.photonvision.simulation.VisionSystemSim;
 import org.photonvision.simulation.VisionTargetSim;
 import org.photonvision.targeting.PhotonPipelineResult;
+import org.photonvision.targeting.PhotonTrackedTarget;
 
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -345,124 +346,121 @@ public class PhotonVision extends SubsystemBase {
                 if (!cameraInitialized) {
                     initializeCamera();
                 } else {
-                    try {
-                        Transform3d robotToTag = new Transform3d();
-                        double timestamp = 0;
+                    Transform3d robotToTag = new Transform3d();
+                    double timestamp = 0;
 
-                        // main call to grab a set of results from the camera
-                        List<PhotonPipelineResult> results = camera.getAllUnreadResults();
+                    // main call to grab a set of results from the camera
+                    List<PhotonPipelineResult> results = camera.getAllUnreadResults();
 
-                        double numberOfResults = results.size(); //double to prevent integer division errors
-                        double totalDistances = 0;
-                        boolean hasTarget = false;
-                        double ambiguity = 0; //unused for now
+                    double numberOfResults = results.size(); //double to prevent integer division errors
+                    double totalDistances = 0;
+                    boolean hasTarget = false;
+                    double ambiguity = 0; //unused for now
 
-                        //fundamentally, this loop updates the pose and distance for each result. It also logs the data to shuffleboard
-                        //this is done in a thread-safe manner, as global variables are only updated at the end of the loop (no race conditions)
-                        for (PhotonPipelineResult result : results) {
-                            if (result.hasTargets()) {
-                                // the local hasTarget variable will turn true if ANY PipelineResult within this loop has a target
-                                hasTarget = true;
-                                timestamp = result.getTimestampSeconds();
-                                boolean tagIdentified = false;
-
-                                //primary tag isolation switch
-                                if(VisionConstants.RobotTagIDs.contains(result.getBestTarget().getFiducialId())) {
-                                    tagIdentified = true;
-                                    isolateToTagSet(result, VisionConstants.RobotTagIDs);
-
-                                    // try multi-tag first
-                                    var multiTagUpdate = doMultiTagUpdate(result);
-                                    if (multiTagUpdate.isPresent()) {
-                                        var tuple = multiTagUpdate.get();
-                                        robotToTag = tuple.k;
-                                        ambiguity = tuple.v;
-                                    } else {
-                                        //fall back to single tag
-                                        var singleTagUpdate = doSingleTagUpdate(result);
-                                        if (singleTagUpdate.isPresent()) {
-                                            var tuple = singleTagUpdate.get();
-                                            robotToTag = tuple.k;
-                                            ambiguity = tuple.v;
-                                        } else {
-                                            //both methods failed
-                                            DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " both multi-tag and single-tag pose updates failed");
-                                            continue;
-                                        }
-                                    }
-
-                                    //account for tag-to-robot and camera-to-robot offsets and then combine vision measurement with master odometry position
-                                    // magical transform that possibly does not work anymore because new robot
-                                    Translation2d x = updates.k.getTranslation().plus(RobotConstants.centerOfMasterToTag).rotateBy(drivetrain.getPose().getRotation()).rotateBy(Rotation2d.k180deg);
-                                    Rotation2d t = updates.k.getRotation().unaryMinus().rotateBy(Rotation2d.kCW_90deg);
-                                    Transform2d visionDisplacement = new Transform2d(x, t);
-                                    updateLocalVision(new Tuple<>(visionDisplacement, updates.v));
-                               } 
-                                
-                                if(VisionConstants.StationTagIDs.contains(result.getBestTarget().getFiducialId())) {
-                                    tagIdentified = true;
-                                    isolateToTagSet(result, VisionConstants.StationTagIDs);
-                                    // only single-tag for station tags
-                                    var singleTagUpdate = doSingleTagUpdate(result);
-                                    if (singleTagUpdate.isPresent()) {
-                                        var tuple = singleTagUpdate.get();
-                                        robotToTag = tuple.k;
-                                        ambiguity = tuple.v;
-                                    } else {
-                                        //single-tag method failed
-                                        DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " single-tag pose update failed for station tag");
-                                    }
-
-                                    updateGlobalVision(updates);                                    
-                                } 
-                                
-                                if(VisionConstants.WingTagIDs.contains(result.getBestTarget().getFiducialId())) {
-                                    tagIdentified = true;
-
-                                    isolateToTagSet(result, VisionConstants.WingTagIDs);
-                                    // only single-tag for wing tags
-                                    var singleTagUpdate = doSingleTagUpdate(result);
-                                    if (singleTagUpdate.isPresent()) {
-                                        var tuple = singleTagUpdate.get();
-                                        robotToTag = tuple.k;
-                                        ambiguity = tuple.v;
-                                    } else {
-                                        //single-tag method failed
-                                        DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " single-tag pose update failed for wing tag");
-                                    }
-
-                                    updateWingVision(updates);
-                                }
-
-                                if(!tagIdentified) {
-                                    System.out.println("[PhotonVision] INFO: " + camName.toString() + " ignoring tag ID " + result.getBestTarget().getFiducialId());
-                                }
-
-                                
-                                
-
-                                // grabs the distance to the best target (for the latest set of result)
-                                totalDistances += result.getBestTarget().getBestCameraToTarget().getTranslation().getNorm();
-
-
-                                hasTargetPublisher.set(true);
-                                targetsFoundPublisher.set(numberOfResults);
-                                timestampPublisher.set(result.getTimestampSeconds());
-                                posePublisher.set(Pose3d.kZero.plus(robotToTag));
-                            } else {
-                                hasTargetPublisher.set(false);
-                                targetsFoundPublisher.set(0);
-                            }
+                    //fundamentally, this loop updates the pose and distance for each result. It also logs the data to shuffleboard
+                    //this is done in a thread-safe manner, as global variables are only updated at the end of the loop (no race conditions)
+                    for (PhotonPipelineResult result : results) {
+                        // first, do multitag as that should be done only once per result
+                        // if the AprilTags.json is set up correctly, this should automatically isolate to RobotTags
+                        var multiTagUpdate = doMultiTagUpdate(result);
+                        if (multiTagUpdate.isPresent()) {
+                            var tuple = multiTagUpdate.get();
+                            robotToTag = tuple.k;
+                            ambiguity = tuple.v;
                         }
-                    } catch (IndexOutOfBoundsException e) {
-                        // if there are no results,
-                        this.hasTarget = false;
+
+
+                        for(PhotonTrackedTarget target : result.getTargets()) {
+                            // the local hasTarget variable will turn true if ANY PipelineResult within this loop has a target
+                            hasTarget = true;
+                            timestamp = result.getTimestampSeconds();
+                            boolean tagIdentified = false;
+
+                            //primary tag isolation switch
+                            if(VisionConstants.RobotTagIDs.contains(target.getFiducialId())) {
+                                tagIdentified = true;
+
+                                // if there are no multitag results, fall back to single tag
+                                if(multiTagUpdate.isEmpty()) {
+                                    //fall back to single tag
+                                    var singleTagUpdate = doSingleTagUpdate(target);
+                                    if (singleTagUpdate.isPresent()) {
+                                        var tuple = singleTagUpdate.get();
+                                        robotToTag = tuple.k;
+                                        ambiguity = tuple.v;
+                                    } else {
+                                        //both methods failed
+                                        DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " both multi-tag and single-tag pose updates failed");
+                                        continue;
+                                    }
+                                }
+
+                                //account for tag-to-robot and camera-to-robot offsets and then combine vision measurement with master odometry position
+                                // magical transform that possibly does not work anymore because new robot
+                                Translation2d x = updates.k.getTranslation().plus(RobotConstants.centerOfMasterToTag).rotateBy(drivetrain.getPose().getRotation()).rotateBy(Rotation2d.k180deg);
+                                Rotation2d t = updates.k.getRotation().unaryMinus().rotateBy(Rotation2d.kCW_90deg);
+                                Transform2d visionDisplacement = new Transform2d(x, t);
+                                updateLocalVision(new Tuple<>(visionDisplacement, updates.v));
+                            } 
+                            
+                            if(VisionConstants.StationTagIDs.contains(target.getFiducialId())) {
+                                tagIdentified = true;
+                                // only single-tag for station tags
+                                var singleTagUpdate = doSingleTagUpdate(target);
+                                if (singleTagUpdate.isPresent()) {
+                                    var tuple = singleTagUpdate.get();
+                                    robotToTag = tuple.k;
+                                    ambiguity = tuple.v;
+                                } else {
+                                    //single-tag method failed
+                                    DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " single-tag pose update failed for station tag");
+                                }
+
+                                updateGlobalVision(updates);                                    
+                            } 
+                            
+                            if(VisionConstants.WingTagIDs.contains(target.getFiducialId())) {
+                                tagIdentified = true;
+
+                                // only single-tag for wing tags
+                                var singleTagUpdate = doSingleTagUpdate(target);
+                                if (singleTagUpdate.isPresent()) {
+                                    var tuple = singleTagUpdate.get();
+                                    robotToTag = tuple.k;
+                                    ambiguity = tuple.v;
+                                } else {
+                                    //single-tag method failed
+                                    DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " single-tag pose update failed for wing tag");
+                                }
+
+                                updateWingVision(updates);
+                            }
+
+                            if(!tagIdentified) {
+                                System.out.println("[PhotonVision] INFO: " + camName.toString() + " ignoring tag ID " + target.getFiducialId());
+                            }
+
+                            
+                            
+
+                            // grabs the distance to the best target (for the latest set of result)
+                            totalDistances += result.getBestTarget().getBestCameraToTarget().getTranslation().getNorm();
+
+
+                            posePublisher.set(Pose3d.kZero.plus(robotToTag)); //TODO: make more pose publishers
+                        }
+
+                        //telemetry
+                        hasTargetPublisher.set(result.hasTargets());
+                        timestampPublisher.set(result.getTimestampSeconds());
+                        targetsFoundPublisher.set(numberOfResults);
                     }
-                    try {
-                        sleep(5);
-                    } catch (InterruptedException e) {
-                        DataLogManager.log(camName.toString() + " sleep failed"); //this will never happen
-                    }
+                }
+
+                try {
+                    sleep(5);
+                } catch (InterruptedException e) {
+                    DataLogManager.log(camName.toString() + " sleep failed"); //this will never happen
                 }
             }
         }
@@ -511,15 +509,15 @@ public class PhotonVision extends SubsystemBase {
             return Optional.empty();
         }
 
-        private Optional<Tuple<Transform3d, Double>> doSingleTagUpdate(PhotonPipelineResult result) {
+        private Optional<Tuple<Transform3d, Double>> doSingleTagUpdate(PhotonTrackedTarget target) {
             Transform3d robotToTag = new Transform3d();
             double ambiguity;
 
             // grabs the best target from the result and sends to pose estimator, iFF the pose ambiguity is below a (hardcoded) threshold
-            if (!(result.getBestTarget().getPoseAmbiguity() > 0.5)) {
+            if (!(target.getPoseAmbiguity() > 0.5)) { //TODO: un-hardcode this threshold
                 //grabs the target pose, relative to the camera, and compensates for the camera position
-                robotToTag = cameraPosition.plus(result.getBestTarget().getBestCameraToTarget());
-                ambiguity = result.getBestTarget().getPoseAmbiguity();
+                robotToTag = cameraPosition.plus(target.getBestCameraToTarget());
+                ambiguity = target.getPoseAmbiguity();
 
                 return Optional.of(new Tuple<Transform3d, Double>(robotToTag, ambiguity));
             } 
@@ -527,15 +525,6 @@ public class PhotonVision extends SubsystemBase {
             DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " pose ambiguity is high");
             return Optional.empty();
         }
-
-        private PhotonPipelineResult isolateToTagSet(PhotonPipelineResult result, List<Integer> validTagIDs) {
-            // remove targets whose fiducialId is not in validTagIDs. i love arraylists :)
-            result.getTargets().removeIf(target -> !validTagIDs.contains(target.getFiducialId()));
-
-            return result;
-        }
-
-
 
         private PhotonCamera getCameraObject() {
             return camera;
@@ -553,41 +542,6 @@ public class PhotonVision extends SubsystemBase {
             new PhotonCamera(cameraName.toString());
         }
     }
-
-
-    /**
-     * multicam imp'l of {@link #updateVision()}
-     * @param caller - the camera that called the function, used to determine which camera's pose to use
-     */
-    // private synchronized void updateVision(CameraName caller) {
-    //     Tuple<EstimatedRobotPose, Double> leftUpdates = camThread.getUpdates();
-    //     Tuple<EstimatedRobotPose, Double> rightUpdates = rightThread.getUpdates();
-
-    //     final double maxAcceptableDist = 4d;
-    //     boolean shouldUpdateLeft = true;
-    //     boolean shouldUpdateRight = true;
-
-
-    //     // prefer the camera that called the function (has known good values)
-    //     // if the other camera has a target, prefer the one with the lower distance to best tag
-    //     switch (caller) {
-    //         case LEFT:
-    //             if((rightThread.hasTarget() && rightUpdates.v < leftUpdates.v) && shouldUpdateRight) {
-    //                 drivetrain.addVisionMeasurement(rightUpdates.k, rightUpdates.v);
-    //             } else if (shouldUpdateLeft) {
-    //                 drivetrain.addVisionMeasurement(leftUpdates.k, leftUpdates.v);
-    //             }
-    //         break;
-    //         case RIGHT:
-    //             if((camThread.hasTarget() && leftUpdates.v < rightUpdates.v) && shouldUpdateLeft) {
-    //                 drivetrain.addVisionMeasurement(leftUpdates.k, rightUpdates.v);
-    //             } else if (shouldUpdateRight) {
-    //                 drivetrain.addVisionMeasurement(rightUpdates.k, rightUpdates.v);
-    //             }
-    //         break;
-    //     }
-    // }
-
 }
 
 
