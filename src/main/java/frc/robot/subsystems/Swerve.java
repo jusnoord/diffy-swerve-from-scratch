@@ -127,6 +127,7 @@ public class Swerve extends SubsystemBase {
 
 	@Override
 	public void periodic() {
+		
 		//update odometry
 		poseEstimator.update(getGyro(), getModulePositions());
 
@@ -283,7 +284,6 @@ public class Swerve extends SubsystemBase {
 
 		VisionPosePublisher.set(visionPose);
 		// System.out.println("hello from addVisionMeasurement in " + Constants.currentRobot.toString());
-
 	}
 
 	

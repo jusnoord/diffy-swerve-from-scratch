@@ -40,12 +40,15 @@ import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.networktables.BooleanPublisher;
 import edu.wpi.first.networktables.DoublePublisher;
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.PubSubOption;
+import edu.wpi.first.networktables.PubSubOptions;
 import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.networktables.StructSubscriber;
 import edu.wpi.first.networktables.TimestampedObject;
 import edu.wpi.first.units.measure.Time;
 import edu.wpi.first.wpilibj.DataLogManager;
 import edu.wpi.first.wpilibj.Filesystem;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
@@ -93,14 +96,14 @@ public class PhotonVision extends SubsystemBase {
         camThread = new CameraThread(camName, RobotConstants.SLAVE_CAMERA_LOCATION);
         camThread.start();
 
-        posePublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("pose for localization only", Pose2d.struct).publish();
-        globalDisplacementPublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("global displacement publisher", Pose2d.struct).publish();
+        posePublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("pose for localization only", Pose2d.struct).publish(PubSubOption.sendAll(true));
+        globalDisplacementPublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("global displacement publisher", Pose2d.struct).publish(PubSubOption.sendAll(true));
         // poseSubscriber = NetworkTableInstance.getDefault().getTable(Constants.currentRobot.getOpposite().toString()).getStructTopic("RobotPose", Pose2d.struct).subscribe(new Pose2d());
 
-        otherPoseSubscriber = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.getOpposite().toString()).getStructTopic("pose for localization only", Pose2d.struct).subscribe(new Pose2d());
-        currentPoseSubscriber = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("pose for localization only", Pose2d.struct).subscribe(new Pose2d());
+        otherPoseSubscriber = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.getOpposite().toString()).getStructTopic("pose for localization only", Pose2d.struct).subscribe(new Pose2d(), PubSubOption.sendAll(true));
+        currentPoseSubscriber = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("pose for localization only", Pose2d.struct).subscribe(new Pose2d(), PubSubOption.sendAll(true));
         
-        updateRequestSubscriber = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.getOpposite().toString()).getStructTopic("update requests", TimestampedVisionUpdate.struct).subscribe(new TimestampedVisionUpdate());
+        updateRequestSubscriber = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.getOpposite().toString()).getStructTopic("update requests", TimestampedVisionUpdate.struct).subscribe(new TimestampedVisionUpdate(), PubSubOption.sendAll(true));
         
         updateRequestPublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("update requests", TimestampedVisionUpdate.struct).publish();
         
@@ -174,12 +177,12 @@ public class PhotonVision extends SubsystemBase {
         //find the master pose with the closest timestamp to the camera's timestamp
         //NT timestamps are measured in microseconds, PhotonVision timestamps are seconds. Mulitiply by one million to convert/
         double visionTimeStampMicroSeconds = timestamp * 1000000d;
-        closestOtherPose = timestampedCurrentPoses.stream()
+        closestCurrentPose = timestampedCurrentPoses.stream()
             .min((a, b) -> Double.compare(Math.abs(a.serverTime - visionTimeStampMicroSeconds), Math.abs(b.serverTime - visionTimeStampMicroSeconds)))
             .map(pose -> pose.value)
             .orElse(null);
         
-        return closestOtherPose;
+        return closestCurrentPose;
     }
 
     /** 
@@ -403,6 +406,8 @@ public class PhotonVision extends SubsystemBase {
             camPosePublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("cam pose", Pose2d.struct).publish();
         }
 
+        double lastLoopTime = Timer.getFPGATimestamp();
+
         @Override
         public void run() {
             try {
@@ -417,6 +422,9 @@ public class PhotonVision extends SubsystemBase {
                 if (!cameraInitialized) {
                     initializeCamera();
                 } else {
+                    System.out.println("loopy:" + (Timer.getFPGATimestamp() - lastLoopTime));
+                    lastLoopTime = Timer.getFPGATimestamp();
+
                     Transform2d robotToTag = new Transform2d();
                     double timestamp = 0;
 
@@ -517,24 +525,24 @@ public class PhotonVision extends SubsystemBase {
                         posePublisher.set(drivetrain.getPose());
                     }
 
-                    if(Constants.IS_MASTER) {
-                        //convert from NT to our local timestamped format
-                        List<TimestampedObject<TimestampedVisionUpdate>> NTTimestampedUpdates = List.of(offsetSubscriber.readQueue());
-                        List<TimestampedVisionUpdate> timestampedOffsets = NTTimestampedUpdates.stream().map(update -> update.value).toList();
-                        for (TimestampedVisionUpdate to : timestampedOffsets) {
-                            Translation2d slaveRelativeTranslation = to.translation;
-                            Rotation2d slaveRelativeRotation = to.rotation; // this should be equal to masterHeading - slaveHeading or something similar
+                    // if(Constants.IS_MASTER) {
+                    //     //convert from NT to our local timestamped format
+                    //     List<TimestampedObject<TimestampedVisionUpdate>> NTTimestampedUpdates = List.of(offsetSubscriber.readQueue());
+                    //     List<TimestampedVisionUpdate> timestampedOffsets = NTTimestampedUpdates.stream().map(update -> update.value).toList();
+                    //     for (TimestampedVisionUpdate to : timestampedOffsets) {
+                    //         Translation2d slaveRelativeTranslation = to.translation;
+                    //         Rotation2d slaveRelativeRotation = to.rotation; // this should be equal to masterHeading - slaveHeading or something similar
 
-                            // Rotation2d slaveHeading = getOtherRobotPosition(to.timestamp).getRotation();
-                            // Rotation2d masterHeading = getCurrentRobotPosition(to.timestamp).getRotation();
+                    //         // Rotation2d slaveHeading = getOtherRobotPosition(to.timestamp).getRotation();
+                    //         // Rotation2d masterHeading = getCurrentRobotPosition(to.timestamp).getRotation();
 
-                            // Translation2d masterRelativeTranslation = slaveRelativeTranslation.rotateBy(slaveHeading.minus(masterHeading)); // TODO: CHECK
+                    //         // Translation2d masterRelativeTranslation = slaveRelativeTranslation.rotateBy(slaveHeading.minus(masterHeading)); // TODO: CHECK
                             
-                            Pose2d masterRelativePose = new Pose2d(slaveRelativeTranslation.unaryMinus().rotateBy(slaveRelativeRotation.unaryMinus()), slaveRelativeRotation.unaryMinus());
-                            updateLocalVision(new TimestampedVisionUpdate(masterRelativePose, to.timestamp, to.ambiguity));
-                            // commented for the moment to debugx later steps
-                        }
-                    }
+                    //         Pose2d masterRelativePose = new Pose2d(slaveRelativeTranslation.unaryMinus().rotateBy(slaveRelativeRotation.unaryMinus()), slaveRelativeRotation.unaryMinus());
+                    //         updateLocalVision(new TimestampedVisionUpdate(masterRelativePose, to.timestamp, to.ambiguity));
+                    //         // commented for the moment to debugx later steps
+                    //     }
+                    // }
 
                     //convert from NT to our local timestamped format
                     List<TimestampedObject<TimestampedVisionUpdate>> NTTimestampedUpdates = List.of(updateRequestSubscriber.readQueue());
