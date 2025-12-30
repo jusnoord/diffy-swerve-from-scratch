@@ -67,6 +67,7 @@ public class Swerve extends SubsystemBase {
 
 	StructArrayPublisher<SwerveModuleState> SMSPublisher;
 	StructPublisher<Pose2d> PosePublisher;
+	StructPublisher<Pose2d> VisionPosePublisher;
 	StructPublisher<ChassisSpeeds> ChassisSpeedsPublisher;
 	DoubleEntry azimuthkPSub, azimuthkISub, azimuthkDSub, azimuthkSSub, azimuthkVSub, azimuthkASub;
 
@@ -105,6 +106,7 @@ public class Swerve extends SubsystemBase {
 		SMSPublisher = NetworkTableInstance.getDefault().getTable(tab).getStructArrayTopic("ModuleStates", SwerveModuleState.struct)
 				.publish();
 		PosePublisher = NetworkTableInstance.getDefault().getTable(tab).getStructTopic("RobotPose", Pose2d.struct).publish();
+		VisionPosePublisher = NetworkTableInstance.getDefault().getTable(tab).getStructTopic("VisionPose", Pose2d.struct).publish();
 		ChassisSpeedsPublisher = NetworkTableInstance.getDefault().getTable(tab).getStructTopic("ChassisSpeeds", ChassisSpeeds.struct)
 				.publish();
 
@@ -269,15 +271,17 @@ public class Swerve extends SubsystemBase {
 		// 	poseEstimator.addVisionMeasurement(visionPose,
 		// 			timestamp,
 		// 			VecBuilder.fill(0.01, 0.01, 0.01));
-		// } elsgetPosee {
+		// } else {
 			//add some bias to odo on enable
 			poseEstimator.addVisionMeasurement(visionPose,
 					timestamp,
 					// decreases vision confidence with distance
-					VecBuilder.fill(distance / 2, distance / 2, distance / 2));
+					VecBuilder.fill(0.01, 0.01, 0.01));
 		// }
 
-		// PosePublisher.set(visionPose);
+		poseEstimator.resetOdometry(visionPose);
+
+		VisionPosePublisher.set(visionPose);
 		// System.out.println("hello from addVisionMeasurement in " + Constants.currentRobot.toString());
 
 	}
