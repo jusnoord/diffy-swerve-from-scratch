@@ -6,6 +6,7 @@ package frc.robot;
 
 import static edu.wpi.first.units.Units.Degrees;
 
+import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -36,8 +37,9 @@ public final class Constants {
 	public static final boolean tuningMode = false; // if true, the robot will use the dashboard to get values for PIDs
 
     //grab the master/slave from a file on the robot. This will determine whether it's running the shuffleboard server.
-    public static final Path MASTER_PATH = Paths.get("/home/lvuser/master");
-    public static final boolean IS_MASTER = !MASTER_PATH.toFile().exists();
+    // public static final Path MASTER_PATH = Paths.get("/home/lvuser/master");
+	public static final File MASTER_FILE = new File("/is_master");
+    public static final boolean IS_MASTER = MASTER_FILE.exists(); // MASTER_PATH.toFile().exists();
 	//TODO: phase out if statements and replace them with switches w/ this enum
 	public static enum RobotType {
 		master, slave;
@@ -237,12 +239,18 @@ public final class Constants {
 			}
 		}
 		public static final SingleRobotConfig[] robotConfigs = new SingleRobotConfig[] { 
-		new SingleRobotConfig(new PodConfig[] { // first robot
-			new PodConfig(8, 4, 24, 0.3184, new Translation2d(wheelBase / 2, -trackWidth / 2)), // BL
-			new PodConfig(5, 9, 22, 0.7168, new Translation2d(-wheelBase / 2, trackWidth / 2)), // FR
-			new PodConfig(10, 6, 21, 0.5891, new Translation2d(wheelBase / 2, trackWidth / 2)), // BR
-			new PodConfig(7, 11, 23, 0.2756, new Translation2d(-wheelBase / 2, -trackWidth / 2)) // FL - +
-		}, 100.0, 0.0, 0.5, 0.1, 2.66, 0.0)
+			new SingleRobotConfig(new PodConfig[] { // first (red) robot
+				new PodConfig(8, 4, 24, 0.3184, new Translation2d(wheelBase / 2, -trackWidth / 2)), // BL
+				new PodConfig(5, 9, 22, 0.7168, new Translation2d(-wheelBase / 2, trackWidth / 2)), // FR
+				new PodConfig(10, 6, 21, 0.5891, new Translation2d(wheelBase / 2, trackWidth / 2)), // BR
+				new PodConfig(7, 11, 23, 0.2756, new Translation2d(-wheelBase / 2, -trackWidth / 2)) // FL - +
+			}, 100.0, 0.0, 0.5, 0.1, 2.66, 0.0),
+			new SingleRobotConfig(new PodConfig[] { // second (green) robot
+				new PodConfig(8, 4, 24, 0.0591, new Translation2d(wheelBase / 2, -trackWidth / 2)), // BL
+				new PodConfig(5, 9, 22, 0.2627, new Translation2d(-wheelBase / 2, trackWidth / 2)), // FR
+				new PodConfig(10, 6, 21, -0.1096, new Translation2d(wheelBase / 2, trackWidth / 2)), // BR
+				new PodConfig(7, 11, 23, 0.3977, new Translation2d(-wheelBase / 2, -trackWidth / 2)) // FL - +
+			}, 100.0, 0.0, 0.5, 0.1, 2.66, 0.0)
 		};
 
 
