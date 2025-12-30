@@ -150,8 +150,8 @@ public final class Constants {
 		public static final double tandemAngle_deadband = 0.005;
 
 		//forward, left, height; roll, pitch, yaw
-		public static final Translation2d centerOfMasterToTag = new Translation2d(0, 0.2102); // meters, distance from the center of the master robot to the tag
-		public static final Transform3d SLAVE_CAMERA_LOCATION = new Transform3d(new Translation3d(0.152, 0.1996, -0.015), new Rotation3d(Degrees.of(180), Degrees.of(0), Degrees.of(105)));
+		public static final Translation2d centerOfMasterToTag = new Translation2d(0.16, 0.0); // meters, distance from the center of the master robot to the tag
+		public static final Transform3d SLAVE_CAMERA_LOCATION = new Transform3d(new Translation3d(0.15, 0.0, 0.0), new Rotation3d(Degrees.of(0), Degrees.of(0), Degrees.of(0)));
 	}
 
 

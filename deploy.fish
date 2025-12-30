@@ -2,10 +2,6 @@
 # deploys code to defined device through rsync, and then runs the simulation with hwSim flag
 # keep in mind that this requires ssh keys to be set up for passwordless login
 
-set argv master
-
-read -P "Deploy to slave/master? " argv
-
 if test $argv = "master"
     echo "Setting up for master robot deployment..."
     set -g IP_ADDRESS 10.93.12.2

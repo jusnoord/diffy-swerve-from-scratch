@@ -132,7 +132,12 @@ public class Swerve extends SubsystemBase {
 		field2d.setRobotPose(getPose());
 
 		SMSPublisher.set(getModuleStates());
+		// if (Constants.IS_MASTER) {
 		PosePublisher.set(getPose());
+
+		// } else {
+		// 	PosePublisher.set(new Pose2d());
+		// }
 		ChassisSpeedsPublisher.set(drivetrainKinematics.toChassisSpeeds(getModuleStates()));
 
 
@@ -258,19 +263,23 @@ public class Swerve extends SubsystemBase {
 	 */
 
 	public void addVisionMeasurement(Pose2d visionPose, double timestamp, double distance) {
-		if(DriverStation.isDisabled()) {
-			//fully sync pose estimator to vision on disable
-			poseEstimator.resetOdometry(visionPose);
-			poseEstimator.addVisionMeasurement(visionPose,
-					timestamp,
-					VecBuilder.fill(0.01, 0.01, 0.01));
-		} else {
+		// if(DriverStation.isDisabled()) {
+		// 	//fully sync pose estimator to vision on disable
+		// 	poseEstimator.resetOdometry(visionPose);
+		// 	poseEstimator.addVisionMeasurement(visionPose,
+		// 			timestamp,
+		// 			VecBuilder.fill(0.01, 0.01, 0.01));
+		// } elsgetPosee {
 			//add some bias to odo on enable
 			poseEstimator.addVisionMeasurement(visionPose,
 					timestamp,
 					// decreases vision confidence with distance
 					VecBuilder.fill(distance / 2, distance / 2, distance / 2));
-		}
+		// }
+
+		// PosePublisher.set(visionPose);
+		// System.out.println("hello from addVisionMeasurement in " + Constants.currentRobot.toString());
+
 	}
 
 	
