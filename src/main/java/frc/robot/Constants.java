@@ -60,7 +60,7 @@ public final class Constants {
 
 		// Camera IDs. this is for individual camera-threads, but there's only one so its fine
 		public static enum CameraName {
-			master, slave
+			slaveFront, masterFront
 		}
 
 		/**
@@ -159,7 +159,7 @@ public final class Constants {
 		//TODO: move vision stuff here
 
 		//TODO: fix these
-		public static final ArrayList<Integer> RobotTagIDs = new ArrayList<>(Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8));
+		public static final ArrayList<Integer> RobotTagIDs = new ArrayList<>(Arrays.asList(17, 18, 19, 20));
 		public static final ArrayList<Integer> StationTagIDs = new ArrayList<>(Arrays.asList(9, 10, 11, 12));
 		public static final ArrayList<Integer> WingTagIDs = new ArrayList<>(Arrays.asList(13, 14, 15, 16));
 	}

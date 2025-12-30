@@ -69,7 +69,7 @@ public class PhotonVision extends SubsystemBase {
 
     public Pose2d pose = new Pose2d();
 
-    public KalmanFilter wingEstimator = new KalmanFilter(3, 3);
+    // public KalmanFilter wingEstimator = new KalmanFilter(3, 3);
 
     private Swerve drivetrain;
 
@@ -94,14 +94,6 @@ public class PhotonVision extends SubsystemBase {
         } else {
             offsetPublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.RobotType.slave.toString()).getStructTopic("offsets", Pose2d.struct).publish();
         }
-    }
-
-    /**
-     * only use for master robot, if no pose estimation is desired. does not start camera thread.
-     * This is used to initialize the camera for the master robot, so that it can run the TimeServer for the slave(s).
-     */
-    public static void initializeMasterCamera() {
-        CameraThread.initializeCamera(CameraName.master.toString());
     }
 
     /**
@@ -224,11 +216,11 @@ public class PhotonVision extends SubsystemBase {
      * this function will additionally update the robot-centric wing estimator to match
      */
     void updateCurrentRobotWingEstimate(Pose2d pose, Double time, double ambiguity) {
-        Mat poseMatrix = new Mat(3, 1, 0);
-        poseMatrix.put(0, 0, pose.getX());
-        poseMatrix.put(1, 0, pose.getY());
-        poseMatrix.put(2, 0, pose.getRotation().getDegrees());
-        wingEstimator.correct(poseMatrix);
+        // Mat poseMatrix = new Mat(3, 1, 0);
+        // poseMatrix.put(0, 0, pose.getX());
+        // poseMatrix.put(1, 0, pose.getY());
+        // poseMatrix.put(2, 0, pose.getRotation().getDegrees());
+        // wingEstimator.correct(poseMatrix);
 
         // TODO THIS IS TOTALLY WRONG I THINJ
     }
@@ -397,12 +389,9 @@ public class PhotonVision extends SubsystemBase {
                             // the local hasTarget variable will turn true if ANY PipelineResult within this loop has a target
                             hasTarget = true;
                             timestamp = result.getTimestampSeconds();
-                            boolean tagIdentified = false;
 
                             //primary tag isolation switch
                             if(VisionConstants.RobotTagIDs.contains(target.getFiducialId())) {
-                                tagIdentified = true;
-
                                 // if there are no multitag results, fall back to single tag
                                 if(multiTagUpdate.isEmpty()) {
                                     //fall back to single tag
@@ -411,6 +400,13 @@ public class PhotonVision extends SubsystemBase {
                                         var tuple = singleTagUpdate.get();
                                         robotToTag = tuple.k;
                                         ambiguity = tuple.v;
+                                        //account for tag-to-robot and camera-to-robot offsets and then combine vision measurement with master odometry position
+                                        // magical transform that possibly does not work anymore because new robot
+                                        Translation2d x = updates.k.getTranslation().plus(RobotConstants.centerOfMasterToTag).rotateBy(drivetrain.getPose().getRotation()).rotateBy(Rotation2d.k180deg);
+                                        Rotation2d t = updates.k.getRotation().unaryMinus().rotateBy(Rotation2d.kCW_90deg);
+                                        Transform2d visionDisplacement = new Transform2d(x, t);
+                                        updateLocalVision(new Tuple<>(visionDisplacement, updates.v)); // TODO: trigger based on offsetSubscriber
+                            
                                     } else {
                                         //both methods failed
                                         DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " both multi-tag and single-tag pose updates failed");
@@ -418,16 +414,7 @@ public class PhotonVision extends SubsystemBase {
                                     }
                                 }
 
-                                //account for tag-to-robot and camera-to-robot offsets and then combine vision measurement with master odometry position
-                                // magical transform that possibly does not work anymore because new robot
-                                Translation2d x = updates.k.getTranslation().plus(RobotConstants.centerOfMasterToTag).rotateBy(drivetrain.getPose().getRotation()).rotateBy(Rotation2d.k180deg);
-                                Rotation2d t = updates.k.getRotation().unaryMinus().rotateBy(Rotation2d.kCW_90deg);
-                                Transform2d visionDisplacement = new Transform2d(x, t);
-                                updateLocalVision(new Tuple<>(visionDisplacement, updates.v)); // TODO: trigger based on offsetSubscriber
-                            } 
-                            
-                            if(VisionConstants.StationTagIDs.contains(target.getFiducialId())) {
-                                tagIdentified = true;
+                                } else if(VisionConstants.StationTagIDs.contains(target.getFiducialId())) {
                                 // only single-tag for station tags
                                 var singleTagUpdate = doSingleTagUpdate(target);
                                 if (singleTagUpdate.isPresent()) {
@@ -440,11 +427,7 @@ public class PhotonVision extends SubsystemBase {
                                 }
 
                                 updateGlobalVision(updates, target.getFiducialId()); // TODO: specify which tag or something cuz we have insufficient information right now                               
-                            } 
-                            
-                            if(VisionConstants.WingTagIDs.contains(target.getFiducialId())) {
-                                tagIdentified = true;
-
+                            } else if(VisionConstants.WingTagIDs.contains(target.getFiducialId())) {
                                 // only single-tag for wing tags
                                 var singleTagUpdate = doSingleTagUpdate(target);
                                 if (singleTagUpdate.isPresent()) {
@@ -457,9 +440,7 @@ public class PhotonVision extends SubsystemBase {
                                 }
 
                                 updateWingVision(updates);
-                            }
-
-                            if(!tagIdentified) {
+                            } else {
                                 System.out.println("[PhotonVision] INFO: " + camName.toString() + " ignoring tag ID " + target.getFiducialId());
                             }
 
@@ -479,11 +460,12 @@ public class PhotonVision extends SubsystemBase {
                         targetsFoundPublisher.set(numberOfResults);
                     }
 
-                    List<TimestampedObject<Pose2d>> timestampedOffsets = List.of(offsetSubscriber.readQueue()); 
-                    for (TimestampedObject<Pose2d> to : timestampedOffsets) {
-                        updateCurrentRobot(to.value, to.serverTime / 1e6, to.value.getTranslation().getNorm());
+                    if(Constants.IS_MASTER) {
+                        List<TimestampedObject<Pose2d>> timestampedOffsets = List.of(offsetSubscriber.readQueue()); 
+                        for (TimestampedObject<Pose2d> to : timestampedOffsets) {
+                            updateCurrentRobot(to.value, to.serverTime / 1e6, to.value.getTranslation().getNorm());
+                        }
                     }
-
                     List<TimestampedObject<Pose2d>> timestampedUpdateRequests = List.of(updateRequestSubscriber.readQueue());
                     for (TimestampedObject<Pose2d> tur : timestampedUpdateRequests) {
                         updateCurrentRobot(tur.value, tur.serverTime / 1e6, tur.value.getTranslation().getNorm());
@@ -539,7 +521,7 @@ public class PhotonVision extends SubsystemBase {
                 return Optional.of(new Tuple<Transform3d, Double>(cameraToRobot, ambiguity));
             }
             //else
-            DataLogManager.log("[PhotonVision] INFO: " + camName.toString() + " multitag result requested but not present");
+            // DataLogManager.log("[PhotonVision] INFO: " + camName.toString() + " multitag result requested but not present");
             return Optional.empty();
         }
 
@@ -581,7 +563,7 @@ public class PhotonVision extends SubsystemBase {
 
 
 
-    /* original single-camera vision update method
+    /* original single-camera vision update methods
     private synchronized void updateLocalVision() {
         Tuple<EstimatedRobotPose, Double> update = camThread.getUpdates();
         timestampedMasterPoses.addAll(List.of(masterPoseSubscriber.readQueue()));

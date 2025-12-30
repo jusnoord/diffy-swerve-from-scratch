@@ -2,7 +2,22 @@
 # deploys code to defined device through rsync, and then runs the simulation with hwSim flag
 # keep in mind that this requires ssh keys to be set up for passwordless login
 
-set URL sparky@10.93.12.2 #todo: fix
+set argv master
+
+read -P "Deploy to slave/master? " argv
+
+if test $argv = "master"
+    echo "Setting up for master robot deployment..."
+    set -g IP_ADDRESS 10.93.12.2
+else if test $argv = "slave"
+    echo "Setting up for slave robot deployment..."
+    set -g IP_ADDRESS 10.93.12.4
+else
+    echo "Error: Invalid argument. Please specify 'slave' or 'master'."
+    exit 1
+end
+
+set URL sparky@$IP_ADDRESS #todo: fix
 set DESTINATION /home/sparky/diffy-swerve-from-scratch/
 
 echo "Deploying to $URL:$DESTINATION"
