@@ -46,6 +46,7 @@ import frc.robot.Constants.RobotConfig;
 import frc.robot.Constants.RobotMap;
 import frc.robot.Constants.RobotMap.PodConfig;
 import frc.robot.Constants.RobotConfig.SingleRobotConfig;
+import frc.robot.util.LegacyPoseEstimator;
 import frc.robot.util.NERDPoseEstimator;
 import frc.robot.Constants;
 import frc.robot.Robot;
@@ -58,7 +59,7 @@ public class Swerve extends SubsystemBase {
 	
 	private final ArrayList<DrivePod> pods = new ArrayList<DrivePod>();
 
-	private final NERDPoseEstimator poseEstimator;
+	private final LegacyPoseEstimator poseEstimator;
 	private final SwerveDriveKinematics drivetrainKinematics;
 
 	public double targetAngle = 0;
@@ -91,7 +92,7 @@ public class Swerve extends SubsystemBase {
 
 
 		// initialize odometry based on the pod positions
-		poseEstimator = new NERDPoseEstimator(
+		poseEstimator = new LegacyPoseEstimator(
 				drivetrainKinematics,
 				getGyro(),
 				getModulePositions(),
@@ -287,12 +288,12 @@ public class Swerve extends SubsystemBase {
 	}
 
 	
-	/**
-	 * sets pose to this
-	 * 
-	 * @param pose estimated pose from the vision system
-	 */
-	public void resetPose(Pose2d pose) {
-		poseEstimator.resetPose(pose);
-	}
+	// /**
+	//  * sets pose to this
+	//  * 
+	//  * @param pose estimated pose from the vision system
+	//  */
+	// public void resetPose(Pose2d pose) {
+	// 	poseEstimator.resetPose(pose);
+	// }
 }
