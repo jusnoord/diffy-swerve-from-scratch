@@ -273,14 +273,14 @@ public class Swerve extends SubsystemBase {
 		// 			timestamp,
 		// 			VecBuilder.fill(0.01, 0.01, 0.01));
 		// } else {
-			//add some bias to odo on enable
+			// add some bias to odo on enable
 			poseEstimator.addVisionMeasurement(visionPose,
 					timestamp,
 					// decreases vision confidence with distance
 					VecBuilder.fill(0.01, 0.01, 0.01));
 		// }
 
-		poseEstimator.resetOdometry(visionPose);
+		// poseEstimator.resetOdometry(visionPose);
 
 		VisionPosePublisher.set(visionPose);
 		// System.out.println("hello from addVisionMeasurement in " + Constants.currentRobot.toString());

@@ -229,7 +229,7 @@ public final class Constants {
 			public SingleRobotConfig(PodConfig[] podConfigs, double kP, double kI, double kD, double kS, double kV, double kA) {
 				this.PodConfigs = podConfigs;
 				for (int i = 0; i < podConfigs.length; i++) {
-					podConfigs[i] = new PodConfig(podConfigs[i], kP, kI, kD, kD, kS, kA);
+					podConfigs[i] = new PodConfig(podConfigs[i], kP, kI, kD, kS, kV, kA);
 				}
 				this.drivetrainKinematics = new SwerveDriveKinematics(
 					java.util.Arrays.stream(podConfigs)

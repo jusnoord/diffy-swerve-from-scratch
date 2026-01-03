@@ -48,7 +48,6 @@ import edu.wpi.first.networktables.TimestampedObject;
 import edu.wpi.first.units.measure.Time;
 import edu.wpi.first.wpilibj.DataLogManager;
 import edu.wpi.first.wpilibj.Filesystem;
-import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
@@ -259,41 +258,77 @@ public class PhotonVision extends SubsystemBase {
      * used for offsets between robots
      * @param update measured displacement between robots along with timestamp of measurement where the difference is master-relative
      */
+    // private synchronized void updateLocalVision(TimestampedVisionUpdate update) {
+    //     if (Constants.IS_MASTER) {
+    //         // update pose estimates for both master and slave
+    //         double timestamp = update.timestamp;
+    //         double ambiguity = update.ambiguity;
+    //         Rotation2d rotation = update.rotation.unaryMinus();
+    //         Translation2d translation = update.translation.unaryMinus().rotateBy(rotation);
+
+    //         Pose2d masterPosition = getMasterPosition(timestamp);
+    //         Pose2d slavePosition = getSlavePosition(timestamp);
+
+    //         Rotation2d averageHeading = masterPosition.getRotation().plus(slavePosition.getRotation()).times(0.5);
+
+    //         // Rotation2d newMasterRotation = masterPosition.getRotation();
+    //         Rotation2d newMasterRotation = averageHeading.plus(rotation.times(0.5));
+    //         // Rotation2d newSlaveRotation = slavePosition.getRotation();
+    //         Rotation2d newSlaveRotation = averageHeading.plus(rotation.times(-0.5));
+
+    //         Translation2d centerOfFormation = masterPosition.getTranslation().plus(slavePosition.getTranslation()).times(0.5);
+
+    //         Translation2d displacementGlobalFrame = translation.rotateBy(newMasterRotation);
+
+    //         Translation2d newSlaveTranslation = displacementGlobalFrame.times(0.5).plus(centerOfFormation);
+    //         Translation2d newMasterTranslation = displacementGlobalFrame.times(-0.5).plus(centerOfFormation);
+
+    //         Pose2d newMasterPose = new Pose2d(newMasterTranslation, newMasterRotation);
+    //         Pose2d newSlavePose = new Pose2d(newSlaveTranslation, newSlaveRotation);
+    //         updateCurrentRobot(new TimestampedVisionUpdate(newMasterPose,timestamp,ambiguity));
+    //         updateOtherRobot(new TimestampedVisionUpdate(newSlavePose,timestamp,ambiguity));
+
+    //         globalDisplacementPublisher.set(new Pose2d(displacementGlobalFrame.times(-0.5).plus(centerOfFormation), new Rotation2d()));
+    //     } else {
+    //         // send vision offset data to master to process
+    //         // offsetPublisher.set(update);
+    //     }
+    // }
+
+
     private synchronized void updateLocalVision(TimestampedVisionUpdate update) {
         if (Constants.IS_MASTER) {
             // update pose estimates for both master and slave
             double timestamp = update.timestamp;
             double ambiguity = update.ambiguity;
-            Rotation2d rotation = update.rotation.unaryMinus();
-            Translation2d translation = update.translation.unaryMinus().rotateBy(rotation);
+            Rotation2d rotation = update.rotation;//.unaryMinus();
+            Translation2d masterTranslation = update.translation;//.unaryMinus().rotateBy(rotation);
+            
 
-            Pose2d masterPosition = getMasterPosition(timestamp);
+            // Pose2d masterPosition = getMasterPosition(timestamp);
             Pose2d slavePosition = getSlavePosition(timestamp);
 
-            Rotation2d averageHeading = masterPosition.getRotation().plus(slavePosition.getRotation()).times(0.5);
+            // Rotation2d averageHeading = masterPosition.getRotation().plus(slavePosition.getRotation()).times(0.5);
 
-            // Rotation2d newMasterRotation = masterPosition.getRotation();
-            Rotation2d newMasterRotation = averageHeading.plus(rotation.times(0.5));
-            // Rotation2d newSlaveRotation = slavePosition.getRotation();
-            Rotation2d newSlaveRotation = averageHeading.plus(rotation.times(-0.5));
+            // Rotation2d newMasterRotation = averageHeading.plus(rotation.times(0.5));
+            // Rotation2d newSlaveRotation = averageHeading.plus(rotation.times(-0.5));
 
+            // Translation2d centerOfFormation = masterPosition.getTranslation().plus(slavePosition.getTranslation()).times(0.5);
 
-            Translation2d centerOfFormation = masterPosition.getTranslation().plus(slavePosition.getTranslation()).times(0.5);
+            // Translation2d displacementGlobalFrame = translation.rotateBy(newMasterRotation);
 
-            Translation2d displacementGlobalFrame = translation.rotateBy(newMasterRotation);
+            // Translation2d newSlaveTranslation = displacementGlobalFrame.times(0.5).plus(centerOfFormation);
+            // Translation2d newMasterTranslation = displacementGlobalFrame.times(-0.5).plus(centerOfFormation);
 
-            Translation2d newSlaveTranslation = displacementGlobalFrame.times(0.5).plus(centerOfFormation);
-            Translation2d newMasterTranslation = displacementGlobalFrame.times(-0.5).plus(centerOfFormation);
-
-            Pose2d newMasterPose = new Pose2d(newMasterTranslation, newMasterRotation);
-            Pose2d newSlavePose = new Pose2d(newSlaveTranslation, newSlaveRotation);
+            Pose2d newMasterPose = new Pose2d(slavePosition.getTranslation().plus(masterTranslation), slavePosition.getRotation().plus(rotation));
+            // Pose2d newSlavePose = new Pose2d(newSlaveTranslation, newSlaveRotation);
             updateCurrentRobot(new TimestampedVisionUpdate(newMasterPose,timestamp,ambiguity));
             // updateOtherRobot(new TimestampedVisionUpdate(newSlavePose,timestamp,ambiguity));
 
-            globalDisplacementPublisher.set(new Pose2d(displacementGlobalFrame.times(-0.5).plus(centerOfFormation), new Rotation2d()));
+            // globalDisplacementPublisher.set(new Pose2d(displacementGlobalFrame.times(-0.5).plus(centerOfFormation), new Rotation2d()));
         } else {
             // send vision offset data to master to process
-            // offsetPublisher.set(update);
+            offsetPublisher.set(update);
         }
     }
 
@@ -406,8 +441,6 @@ public class PhotonVision extends SubsystemBase {
             camPosePublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("cam pose", Pose2d.struct).publish();
         }
 
-        double lastLoopTime = Timer.getFPGATimestamp();
-
         @Override
         public void run() {
             try {
@@ -422,9 +455,6 @@ public class PhotonVision extends SubsystemBase {
                 if (!cameraInitialized) {
                     initializeCamera();
                 } else {
-                    System.out.println("loopy:" + (Timer.getFPGATimestamp() - lastLoopTime));
-                    lastLoopTime = Timer.getFPGATimestamp();
-
                     Transform2d robotToTag = new Transform2d();
                     double timestamp = 0;
 
