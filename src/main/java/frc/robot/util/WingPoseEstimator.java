@@ -18,13 +18,13 @@ public class WingPoseEstimator {
     private Matrix<N3, N1> stateStdDevs;
     private Matrix<N3, N1> measurementStdDevs;
     private final Matrix<N3, N1> ZERO_MATRIX = new Matrix<>(Nat.N3(), Nat.N1());
-    
+     
     public WingPoseEstimator() {
         Nat<N3> matrixSize = Nat.N3();
-        Matrix<N3, N3> A = Matrix.eye(Nat.N3()); // state does not propogate as object is stationary (zero velocity)
-        Matrix<N3, N3> B = new Matrix<>(Nat.N3(), Nat.N3()); // no inputs (e.g. odometry/control)
-        Matrix<N3, N3> C = Matrix.eye(Nat.N3()); // all states are measured directly
-        Matrix<N3, N3> D = new Matrix<>(Nat.N3(), Nat.N3()); // again, no inputs. also no feedthrough anyway
+        Matrix<N3, N3> A = Matrix.eye(matrixSize); // state does not propogate as object is stationary (zero velocity)
+        Matrix<N3, N3> B = new Matrix<>(matrixSize, matrixSize); // no inputs (e.g. odometry/control)
+        Matrix<N3, N3> C = Matrix.eye(matrixSize); // all states are measured directly
+        Matrix<N3, N3> D = new Matrix<>(matrixSize, matrixSize); // again, no inputs. also no feedthrough anyway
 
         plant = new LinearSystem<>(A, B, C, D);
 

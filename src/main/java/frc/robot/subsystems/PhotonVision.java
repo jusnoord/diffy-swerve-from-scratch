@@ -218,7 +218,7 @@ public class PhotonVision extends SubsystemBase {
      * @param ambiguity proportional measure of uncertainty, usually just distance in meters
      * this function will additionally update the robot-centric wing estimator to match
      */
-    void updateCurrentRobot(TimestampedVisionUpdate update) {
+    synchronized void updateCurrentRobot(TimestampedVisionUpdate update) {
         drivetrain.addVisionMeasurement(new Pose2d(update.translation, update.rotation), update.timestamp, update.ambiguity);
     }
 

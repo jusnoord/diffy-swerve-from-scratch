@@ -247,8 +247,8 @@ public final class Constants {
 			}, 100.0, 0.0, 0.5, 0.1, 2.66, 0.0),
 			new SingleRobotConfig(new PodConfig[] { // second (green) robot
 				new PodConfig(8, 4, 24, 0.0591, new Translation2d(wheelBase / 2, -trackWidth / 2)), // BL
-				new PodConfig(5, 9, 22, 0.2627, new Translation2d(-wheelBase / 2, trackWidth / 2)), // FR
-				new PodConfig(10, 6, 21, -0.1096, new Translation2d(wheelBase / 2, trackWidth / 2)), // BR
+				new PodConfig(5, 9, 22, 0.7627, new Translation2d(-wheelBase / 2, trackWidth / 2)), // FR
+				new PodConfig(10, 6, 21, -0.6096, new Translation2d(wheelBase / 2, trackWidth / 2)), // BR
 				new PodConfig(7, 11, 23, 0.3977, new Translation2d(-wheelBase / 2, -trackWidth / 2)) // FL - +
 			}, 100.0, 0.0, 0.5, 0.1, 2.66, 0.0)
 		};
