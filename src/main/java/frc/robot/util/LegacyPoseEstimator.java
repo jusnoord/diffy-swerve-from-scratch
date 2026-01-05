@@ -216,7 +216,7 @@ public class LegacyPoseEstimator {
    *     edu.wpi.first.wpilibj.Timer#getFPGATimestamp()}.) This means that you should use {@link
    *     edu.wpi.first.wpilibj.Timer#getFPGATimestamp()} as your time source or sync the epochs.
    */
-  public void addVisionMeasurement(Pose2d visionRobotPoseMeters, double timestampSeconds) {
+  public synchronized void addVisionMeasurement(Pose2d visionRobotPoseMeters, double timestampSeconds) {
     // Step 0: If this measurement is old enough to be outside the pose buffer's timespan, skip.
     try {
       if (m_poseBuffer.getInternalBuffer().lastKey() - kBufferDuration > timestampSeconds) {
@@ -290,7 +290,7 @@ public class LegacyPoseEstimator {
    *     in meters, y position in meters, and heading in radians). Increase these numbers to trust
    *     the vision pose measurement less.
    */
-  public void addVisionMeasurement(
+  public synchronized void addVisionMeasurement(
       Pose2d visionRobotPoseMeters,
       double timestampSeconds,
       Matrix<N3, N1> visionMeasurementStdDevs) {

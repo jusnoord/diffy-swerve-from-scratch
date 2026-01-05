@@ -59,7 +59,7 @@ public class Swerve extends SubsystemBase {
 	
 	private final ArrayList<DrivePod> pods = new ArrayList<DrivePod>();
 
-	private final LegacyPoseEstimator poseEstimator;
+	private final NERDPoseEstimator poseEstimator;
 	private final SwerveDriveKinematics drivetrainKinematics;
 
 	public double targetAngle = 0;
@@ -92,7 +92,7 @@ public class Swerve extends SubsystemBase {
 
 
 		// initialize odometry based on the pod positions
-		poseEstimator = new LegacyPoseEstimator(
+		poseEstimator = new NERDPoseEstimator(
 				drivetrainKinematics,
 				getGyro(),
 				getModulePositions(),

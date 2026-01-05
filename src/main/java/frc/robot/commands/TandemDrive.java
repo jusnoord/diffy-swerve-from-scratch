@@ -86,14 +86,18 @@ public class TandemDrive extends Command {
         Pose2d offsetPosition = RobotConfig.offsetPositions[Constants.IS_MASTER ? 0 : 1];
         Pose2d currentPose = swerve.getPose();
         Pose2d masterPose = Constants.IS_MASTER ? currentPose : masterPoseSubscriber.get();
-        Pose2d robotVelocity = new Pose2d(joystickVelocity.get().getTranslation().rotateBy(masterPose.getRotation()).plus(new Translation2d(joystickVelocity.get().getRotation().times(offsetPosition.getTranslation().getNorm()).getRadians(), offsetPosition.getTranslation().getAngle().plus(Rotation2d.kCCW_90deg).plus(offsetPosition.getRotation()).plus(masterPose.getRotation()))), joystickVelocity.get().getRotation());
+        Pose2d robotVelocity = new Pose2d(joystickVelocity.get().getTranslation().rotateBy(masterPose.getRotation())
+            .plus(new Translation2d(joystickVelocity.get().getRotation().getRadians() * offsetPosition.getTranslation().getNorm() * 1.6180339887, 
+              offsetPosition.getTranslation().getAngle().plus(Constants.IS_MASTER ? Rotation2d.kZero : Rotation2d.kCCW_90deg).plus(offsetPosition.getRotation()).plus(masterPose.getRotation()))), 
+        joystickVelocity.get().getRotation());
+
         //grab the target pose calculated by the master robot, add it onto the offset position for this robot
         Pose2d robotTargetPose = masterPose.plus(RobotConfig.offsetPositions[1].minus(RobotConfig.offsetPositions[0]));
 
         //calculate the speeds to drive towards the target pose
         double xOut = robotVelocity.getX() + xPID.calculate(currentPose.getX(), robotTargetPose.getX());
         double yOut = robotVelocity.getY() + yPID.calculate(currentPose.getY(), robotTargetPose.getY());
-        double rOut = robotVelocity.getRotation().getRadians() + anglePID.calculate(currentPose.getRotation().getRadians(), robotTargetPose.getRotation().getRadians());
+        double rOut = robotVelocity.getRotation().getRadians() - anglePID.calculate(currentPose.getRotation().getRadians(), robotTargetPose.getRotation().getRadians());
         
         boolean PIDAtTolerance = anglePID.atSetpoint() && xPID.atSetpoint() && yPID.atSetpoint();
         if (!Constants.IS_MASTER && !PIDAtTolerance) {

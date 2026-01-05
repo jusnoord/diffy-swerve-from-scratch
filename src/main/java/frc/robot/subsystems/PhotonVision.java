@@ -78,6 +78,7 @@ public class PhotonVision extends SubsystemBase {
     private StructPublisher<Pose2d> globalDisplacementPublisher; // TODO: balance the NT publishing between master and slave
 
     private WingPoseEstimator wingPoseEstimator;
+    private StructPublisher<Pose2d> wingPosePublisher; 
 
     private StructPublisher<TimestampedVisionUpdate> updateRequestPublisher; // pose2d
     private StructSubscriber<TimestampedVisionUpdate> updateRequestSubscriber; // pose2d
@@ -98,7 +99,6 @@ public class PhotonVision extends SubsystemBase {
         camThread = new CameraThread(camName, RobotConstants.SLAVE_CAMERA_LOCATION);
         camThread.start();
 
-        wingPoseEstimator = new WingPoseEstimator();
 
         posePublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("pose for localization only", Pose2d.struct).publish(PubSubOption.sendAll(true));
         globalDisplacementPublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("global displacement publisher", Pose2d.struct).publish(PubSubOption.sendAll(true));
@@ -113,8 +113,10 @@ public class PhotonVision extends SubsystemBase {
         
         if (!Constants.IS_MASTER) {
             offsetSubscriber = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.RobotType.slave.toString()).getStructTopic("offsets", TimestampedVisionUpdate.struct).subscribe(new TimestampedVisionUpdate());
+            wingPosePublisher = NetworkTableInstance.getDefault().getTable("WingPoseEstimator").getStructTopic("slave pose subscriber", Pose2d.struct).publish(PubSubOption.sendAll(true));
         } else {
             offsetPublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.RobotType.slave.toString()).getStructTopic("offsets", TimestampedVisionUpdate.struct).publish();
+            wingPoseEstimator = new WingPoseEstimator();
         }
     }
 
@@ -243,18 +245,16 @@ public class PhotonVision extends SubsystemBase {
      * @param ambiguity proportional measure of uncertainty, usually just distance in meters
      * this function will additionally update the robot-centric wing estimator to match
      */
-    void updateCurrentRobotWingEstimate(TimestampedVisionUpdate update) {
-        // Mat poseMatrix = new Mat(3, 1, 0);
-        // poseMatrix.put(0, 0, pose.getX());
-        // poseMatrix.put(1, 0, pose.getY());
-        // poseMatrix.put(2, 0, pose.getRotation().getDegrees());
-        // wingEstimator.correct(poseMatrix);
-        wingPoseEstimator.addVisionMeasurement(new Pose2d(update.translation, update.rotation));
-
+    void updateWingEstimate(TimestampedVisionUpdate update) {
+        if(Constants.IS_MASTER) {
+            wingPoseEstimator.addVisionMeasurement(new Pose2d(update.translation, update.rotation));
+        } else {
+            wingPosePublisher.accept(new Pose2d(update.translation, update.rotation));
+        }
         // TODO add timestamp not important
     }
 
-    Pose2d getCurrentRobotWingEstimate() {
+    Pose2d getWingEstimate() {
         return wingPoseEstimator.getEstimatedPose();
     }
 
@@ -330,7 +330,7 @@ public class PhotonVision extends SubsystemBase {
             // Translation2d newSlaveTranslation = displacementGlobalFrame.times(0.5).plus(centerOfFormation);
             // Translation2d newMasterTranslation = displacementGlobalFrame.times(-0.5).plus(centerOfFormation);
 
-            Pose2d newPose = new Pose2d(otherPosition.getTranslation().plus(translation), otherPosition.getRotation().plus(rotation));
+            Pose2d newPose = new Pose2d(RobotConstants.centerOfMasterToTag.plus(otherPosition.getTranslation().plus(translation.rotateBy(otherPosition.getRotation()))), otherPosition.getRotation().plus(rotation));
             // Pose2d newSlavePose = new Pose2d(newSlaveTranslation, newSlaveRotation);
             updateCurrentRobot(new TimestampedVisionUpdate(newPose,timestamp,ambiguity));
             // updateOtherRobot(new TimestampedVisionUpdate(newSlavePose,timestamp,ambiguity));
@@ -391,7 +391,7 @@ public class PhotonVision extends SubsystemBase {
     private synchronized void updateWingVision(TimestampedVisionUpdate update, int TagID) {
         Pose2d currentRobotPose = getCurrentRobotPosition(update.timestamp);
         Pose2d wingPose = currentRobotPose.plus(new Transform2d(update.translation, update.rotation)).plus(getWingRelativePosition(TagID).inverse());
-        updateCurrentRobotWingEstimate(new TimestampedVisionUpdate(wingPose, update.timestamp, update.ambiguity));
+        updateWingEstimate(new TimestampedVisionUpdate(wingPose, update.timestamp, update.ambiguity));
     }
 
     // /** switches origin and target */
@@ -466,6 +466,11 @@ public class PhotonVision extends SubsystemBase {
                 if (!cameraInitialized) {
                     initializeCamera();
                 } else {
+
+                    if(Constants.IS_MASTER) {
+                        wingPoseEstimator.periodic();
+                    }
+
                     Transform2d robotToTag = new Transform2d();
                     double timestamp = 0;
 
@@ -591,7 +596,6 @@ public class PhotonVision extends SubsystemBase {
                     for (TimestampedVisionUpdate tur : timestampedOffsets) {
                         updateCurrentRobot(tur);
                     }
-                
                 }
                 try {
                     sleep(5);
@@ -636,7 +640,7 @@ public class PhotonVision extends SubsystemBase {
             if (result.multitagResult.isPresent()) {
                 var multiTag = result.multitagResult.get();
                 // Use getCameraToRobot() to get the transform from camera to robot
-                Transform3d cameraToRobot3d = multiTag.estimatedPose.best;
+                Transform3d cameraToRobot3d = cameraPosition.plus(multiTag.estimatedPose.best);
                 Transform2d cameraToRobot = new Transform2d(cameraToRobot3d.getTranslation().toTranslation2d(), cameraToRobot3d.getRotation().toRotation2d());
                 double ambiguity = multiTag.estimatedPose.ambiguity;
                 return Optional.of(new Tuple<Transform2d, Double>(cameraToRobot, ambiguity));

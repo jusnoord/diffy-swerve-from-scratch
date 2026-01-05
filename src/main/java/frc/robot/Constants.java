@@ -150,8 +150,8 @@ public final class Constants {
 		public static final double tandemAngle_deadband = 0.005;
 
 		//forward, left, height; roll, pitch, yaw
-		public static final Translation2d centerOfMasterToTag = new Translation2d(0.16, 0.0); // meters, distance from the center of the master robot to the tag
-		public static final Transform3d SLAVE_CAMERA_LOCATION = new Transform3d(new Translation3d(0.15, 0.0, 0.0), new Rotation3d(Degrees.of(0), Degrees.of(0), Degrees.of(0)));
+		public static final Translation2d centerOfMasterToTag = new Translation2d(0.267, 0.0); // meters, distance from the center of the master robot to the tag
+		public static final Transform3d SLAVE_CAMERA_LOCATION = new Transform3d(new Translation3d(0.2, 0.0, 0.0), new Rotation3d(Degrees.of(0), Degrees.of(0), Degrees.of(0)));
 	}
 
 
@@ -160,8 +160,8 @@ public final class Constants {
 
 		//TODO: fix these
 		public static final ArrayList<Integer> RobotTagIDs = new ArrayList<>(Arrays.asList(17, 18, 19, 20));
-		public static final ArrayList<Integer> StationTagIDs = new ArrayList<>(Arrays.asList(9, 10, 11, 12));
-		public static final ArrayList<Integer> WingTagIDs = new ArrayList<>(Arrays.asList(13, 14, 15, 16));
+		public static final ArrayList<Integer> StationTagIDs = new ArrayList<>(Arrays.asList(2));
+		public static final ArrayList<Integer> WingTagIDs = new ArrayList<>(Arrays.asList(1));
 	}
 
 	/**
