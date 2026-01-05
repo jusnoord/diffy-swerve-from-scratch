@@ -297,7 +297,7 @@ public class PhotonVision extends SubsystemBase {
 
 
     private synchronized void updateLocalVision(TimestampedVisionUpdate update) {
-        if (Constants.IS_MASTER) {
+        if (!Constants.IS_MASTER) {
             // update pose estimates for both master and slave
             double timestamp = update.timestamp;
             double ambiguity = update.ambiguity;
@@ -306,7 +306,7 @@ public class PhotonVision extends SubsystemBase {
             
 
             // Pose2d masterPosition = getMasterPosition(timestamp);
-            Pose2d slavePosition = getSlavePosition(timestamp);
+            Pose2d masterPosition = getMasterPosition(timestamp);
 
             // Rotation2d averageHeading = masterPosition.getRotation().plus(slavePosition.getRotation()).times(0.5);
 
@@ -320,15 +320,15 @@ public class PhotonVision extends SubsystemBase {
             // Translation2d newSlaveTranslation = displacementGlobalFrame.times(0.5).plus(centerOfFormation);
             // Translation2d newMasterTranslation = displacementGlobalFrame.times(-0.5).plus(centerOfFormation);
 
-            Pose2d newMasterPose = new Pose2d(slavePosition.getTranslation().plus(masterTranslation), slavePosition.getRotation().plus(rotation));
+            Pose2d newSlavePose = new Pose2d(masterPosition.getTranslation().plus(masterTranslation), masterPosition.getRotation().plus(rotation));
             // Pose2d newSlavePose = new Pose2d(newSlaveTranslation, newSlaveRotation);
-            updateCurrentRobot(new TimestampedVisionUpdate(newMasterPose,timestamp,ambiguity));
+            updateCurrentRobot(new TimestampedVisionUpdate(newSlavePose,timestamp,ambiguity));
             // updateOtherRobot(new TimestampedVisionUpdate(newSlavePose,timestamp,ambiguity));
 
             // globalDisplacementPublisher.set(new Pose2d(displacementGlobalFrame.times(-0.5).plus(centerOfFormation), new Rotation2d()));
         } else {
             // send vision offset data to master to process
-            offsetPublisher.set(update);
+            offsetPublisher.set(update); // This is never actually used
         }
     }
 
