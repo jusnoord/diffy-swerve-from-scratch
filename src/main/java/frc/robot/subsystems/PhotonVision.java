@@ -57,6 +57,7 @@ import frc.robot.Constants.VisionConstants;
 import frc.robot.Constants.RobotMap.CameraName;
 import frc.robot.util.Triplet;
 import frc.robot.util.Tuple;
+import frc.robot.util.WingPoseEstimator;
 import frc.robot.util.TimestampedVisionUpdate;
 import frc.robot.util.TimestampedVisionUpdateStruct;
 
@@ -75,6 +76,8 @@ public class PhotonVision extends SubsystemBase {
     private StructSubscriber<Pose2d> currentPoseSubscriber; // TODO: balance the NT publishing between master and slave
     private StructPublisher<Pose2d> posePublisher; // TODO: balance the NT publishing between master and slave
     private StructPublisher<Pose2d> globalDisplacementPublisher; // TODO: balance the NT publishing between master and slave
+
+    private WingPoseEstimator wingPoseEstimator;
 
     private StructPublisher<TimestampedVisionUpdate> updateRequestPublisher; // pose2d
     private StructSubscriber<TimestampedVisionUpdate> updateRequestSubscriber; // pose2d
@@ -95,6 +98,8 @@ public class PhotonVision extends SubsystemBase {
         camThread = new CameraThread(camName, RobotConstants.SLAVE_CAMERA_LOCATION);
         camThread.start();
 
+        wingPoseEstimator = new WingPoseEstimator();
+
         posePublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("pose for localization only", Pose2d.struct).publish(PubSubOption.sendAll(true));
         globalDisplacementPublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("global displacement publisher", Pose2d.struct).publish(PubSubOption.sendAll(true));
         // poseSubscriber = NetworkTableInstance.getDefault().getTable(Constants.currentRobot.getOpposite().toString()).getStructTopic("RobotPose", Pose2d.struct).subscribe(new Pose2d());
@@ -106,7 +111,7 @@ public class PhotonVision extends SubsystemBase {
         
         updateRequestPublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("update requests", TimestampedVisionUpdate.struct).publish();
         
-        if (Constants.IS_MASTER) {
+        if (!Constants.IS_MASTER) {
             offsetSubscriber = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.RobotType.slave.toString()).getStructTopic("offsets", TimestampedVisionUpdate.struct).subscribe(new TimestampedVisionUpdate());
         } else {
             offsetPublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.RobotType.slave.toString()).getStructTopic("offsets", TimestampedVisionUpdate.struct).publish();
@@ -244,8 +249,13 @@ public class PhotonVision extends SubsystemBase {
         // poseMatrix.put(1, 0, pose.getY());
         // poseMatrix.put(2, 0, pose.getRotation().getDegrees());
         // wingEstimator.correct(poseMatrix);
+        wingPoseEstimator.addVisionMeasurement(new Pose2d(update.translation, update.rotation));
 
-        // TODO THIS IS TOTALLY WRONG I THINJ
+        // TODO add timestamp not important
+    }
+
+    Pose2d getCurrentRobotWingEstimate() {
+        return wingPoseEstimator.getEstimatedPose();
     }
 
     /** 
@@ -302,11 +312,11 @@ public class PhotonVision extends SubsystemBase {
             double timestamp = update.timestamp;
             double ambiguity = update.ambiguity;
             Rotation2d rotation = update.rotation;//.unaryMinus();
-            Translation2d masterTranslation = update.translation;//.unaryMinus().rotateBy(rotation);
+            Translation2d translation = update.translation;//.unaryMinus().rotateBy(rotation);
             
 
             // Pose2d masterPosition = getMasterPosition(timestamp);
-            Pose2d masterPosition = getMasterPosition(timestamp);
+            Pose2d otherPosition = getOtherRobotPosition(timestamp);
 
             // Rotation2d averageHeading = masterPosition.getRotation().plus(slavePosition.getRotation()).times(0.5);
 
@@ -320,9 +330,9 @@ public class PhotonVision extends SubsystemBase {
             // Translation2d newSlaveTranslation = displacementGlobalFrame.times(0.5).plus(centerOfFormation);
             // Translation2d newMasterTranslation = displacementGlobalFrame.times(-0.5).plus(centerOfFormation);
 
-            Pose2d newSlavePose = new Pose2d(masterPosition.getTranslation().plus(masterTranslation), masterPosition.getRotation().plus(rotation));
+            Pose2d newPose = new Pose2d(otherPosition.getTranslation().plus(translation), otherPosition.getRotation().plus(rotation));
             // Pose2d newSlavePose = new Pose2d(newSlaveTranslation, newSlaveRotation);
-            updateCurrentRobot(new TimestampedVisionUpdate(newSlavePose,timestamp,ambiguity));
+            updateCurrentRobot(new TimestampedVisionUpdate(newPose,timestamp,ambiguity));
             // updateOtherRobot(new TimestampedVisionUpdate(newSlavePose,timestamp,ambiguity));
 
             // globalDisplacementPublisher.set(new Pose2d(displacementGlobalFrame.times(-0.5).plus(centerOfFormation), new Rotation2d()));
@@ -334,6 +344,9 @@ public class PhotonVision extends SubsystemBase {
 
     private Pose2d getTagPose(int tagID) {
         return new Pose2d(); // TODO: DO SOMETHING LAH
+    }
+    private Transform2d getWingRelativePosition(int tagID) {
+        return new Transform2d(); // TODO: DO SOMETHING LAH
     }
 
     private synchronized void updateGlobalVision(TimestampedVisionUpdate update, int tagID) {
@@ -377,9 +390,9 @@ public class PhotonVision extends SubsystemBase {
      * used for wing-specific tags
      * @param update measured displacement between robot and wing along with timestamp of measurement
      */
-    private synchronized void updateWingVision(TimestampedVisionUpdate update) {
+    private synchronized void updateWingVision(TimestampedVisionUpdate update, int TagID) {
         Pose2d currentRobotPose = getCurrentRobotPosition(update.timestamp);
-        Pose2d wingPose = currentRobotPose.plus(new Transform2d(update.translation, update.rotation));
+        Pose2d wingPose = currentRobotPose.plus(new Transform2d(update.translation, update.rotation)).plus(getWingRelativePosition(TagID).inverse());
         updateCurrentRobotWingEstimate(new TimestampedVisionUpdate(wingPose, update.timestamp, update.ambiguity));
     }
 
@@ -528,7 +541,7 @@ public class PhotonVision extends SubsystemBase {
                                     var tuple = singleTagUpdate.get();
                                     robotToTag = tuple.k;
                                     ambiguity = tuple.v;
-                                    updateWingVision(new TimestampedVisionUpdate(robotToTag, timestamp, ambiguity));
+                                    updateWingVision(new TimestampedVisionUpdate(robotToTag, timestamp, ambiguity), target.getFiducialId());
                                 } else {
                                     //single-tag method failed
                                     DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " single-tag pose update failed for wing tag");
@@ -555,24 +568,24 @@ public class PhotonVision extends SubsystemBase {
                         posePublisher.set(drivetrain.getPose());
                     }
 
-                    // if(Constants.IS_MASTER) {
-                    //     //convert from NT to our local timestamped format
-                    //     List<TimestampedObject<TimestampedVisionUpdate>> NTTimestampedUpdates = List.of(offsetSubscriber.readQueue());
-                    //     List<TimestampedVisionUpdate> timestampedOffsets = NTTimestampedUpdates.stream().map(update -> update.value).toList();
-                    //     for (TimestampedVisionUpdate to : timestampedOffsets) {
-                    //         Translation2d slaveRelativeTranslation = to.translation;
-                    //         Rotation2d slaveRelativeRotation = to.rotation; // this should be equal to masterHeading - slaveHeading or something similar
+                    if(!Constants.IS_MASTER) {
+                        //convert from NT to our local timestamped format
+                        List<TimestampedObject<TimestampedVisionUpdate>> NTTimestampedUpdates = List.of(offsetSubscriber.readQueue());
+                        List<TimestampedVisionUpdate> timestampedOffsets = NTTimestampedUpdates.stream().map(update -> update.value).toList();
+                        for (TimestampedVisionUpdate to : timestampedOffsets) {
+                            Translation2d slaveRelativeTranslation = to.translation;
+                            Rotation2d slaveRelativeRotation = to.rotation; // this should be equal to masterHeading - slaveHeading or something similar
 
-                    //         // Rotation2d slaveHeading = getOtherRobotPosition(to.timestamp).getRotation();
-                    //         // Rotation2d masterHeading = getCurrentRobotPosition(to.timestamp).getRotation();
+                            // Rotation2d slaveHeading = getOtherRobotPosition(to.timestamp).getRotation();
+                            // Rotation2d masterHeading = getCurrentRobotPosition(to.timestamp).getRotation();
 
-                    //         // Translation2d masterRelativeTranslation = slaveRelativeTranslation.rotateBy(slaveHeading.minus(masterHeading)); // TODO: CHECK
+                            // Translation2d masterRelativeTranslation = slaveRelativeTranslation.rotateBy(slaveHeading.minus(masterHeading)); // TODO: CHECK
                             
-                    //         Pose2d masterRelativePose = new Pose2d(slaveRelativeTranslation.unaryMinus().rotateBy(slaveRelativeRotation.unaryMinus()), slaveRelativeRotation.unaryMinus());
-                    //         updateLocalVision(new TimestampedVisionUpdate(masterRelativePose, to.timestamp, to.ambiguity));
-                    //         // commented for the moment to debugx later steps
-                    //     }
-                    // }
+                            Pose2d masterRelativePose = new Pose2d(slaveRelativeTranslation.unaryMinus().rotateBy(slaveRelativeRotation.unaryMinus()), slaveRelativeRotation.unaryMinus());
+                            updateLocalVision(new TimestampedVisionUpdate(masterRelativePose, to.timestamp, to.ambiguity));
+                            // commented for the moment to debugx later steps
+                        }
+                    }
 
                     //convert from NT to our local timestamped format
                     List<TimestampedObject<TimestampedVisionUpdate>> NTTimestampedUpdates = List.of(updateRequestSubscriber.readQueue());
