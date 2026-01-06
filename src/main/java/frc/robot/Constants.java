@@ -160,8 +160,8 @@ public final class Constants {
 
 		//TODO: fix these
 		public static final ArrayList<Integer> RobotTagIDs = new ArrayList<>(Arrays.asList(17, 18, 19, 20));
-		public static final ArrayList<Integer> StationTagIDs = new ArrayList<>(Arrays.asList(2));
-		public static final ArrayList<Integer> WingTagIDs = new ArrayList<>(Arrays.asList(1));
+		public static final ArrayList<Integer> StationTagIDs = new ArrayList<>(Arrays.asList(1));
+		public static final ArrayList<Integer> WingTagIDs = new ArrayList<>(Arrays.asList(2));
 	}
 
 	/**
@@ -201,8 +201,8 @@ public final class Constants {
 
 
 
-		private static final double wheelBase = Units.inchesToMeters(21);
-		private static final double trackWidth = Units.inchesToMeters(21);
+		private static final double wheelBase = Units.inchesToMeters(19.75);
+		private static final double trackWidth = Units.inchesToMeters(19.75);
 		public static Pose2d[] offsetPositions = {new Pose2d(new Translation2d(0.0, 0.4), new Rotation2d()), new Pose2d(new Translation2d(0.0, -0.4), new Rotation2d())}; // default center of rotation of robot
 		public static Command reset() {
 			return new InstantCommand(() -> resetOffsetPositions());

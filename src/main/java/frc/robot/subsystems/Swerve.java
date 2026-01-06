@@ -59,7 +59,7 @@ public class Swerve extends SubsystemBase {
 	
 	private final ArrayList<DrivePod> pods = new ArrayList<DrivePod>();
 
-	private final NERDPoseEstimator poseEstimator;
+	private final LegacyPoseEstimator poseEstimator;
 	private final SwerveDriveKinematics drivetrainKinematics;
 
 	public double targetAngle = 0;
@@ -92,7 +92,7 @@ public class Swerve extends SubsystemBase {
 
 
 		// initialize odometry based on the pod positions
-		poseEstimator = new NERDPoseEstimator(
+		poseEstimator = new LegacyPoseEstimator(
 				drivetrainKinematics,
 				getGyro(),
 				getModulePositions(),
@@ -262,29 +262,24 @@ public class Swerve extends SubsystemBase {
 	 * accepts a vision measurement for pose estimation
 	 * 
 	 * @param visionPose estimated pose from the vision system
-	 * @param distance   distance from the vision target to the robot, used for
-	 *                   uncertainty in the pose estimation
+	 * @param stdDev   standard deviation representing uncertainty in the pose estimation
 	 */
 
-	public void addVisionMeasurement(Pose2d visionPose, double timestamp, double distance) {
-		// if(DriverStation.isDisabled()) {
-		// 	//fully sync pose estimator to vision on disable
-		// 	poseEstimator.resetOdometry(visionPose);
-		// 	poseEstimator.addVisionMeasurement(visionPose,
-		// 			timestamp,
-		// 			VecBuilder.fill(0.01, 0.01, 0.01));
-		// } else {
+	public void addVisionMeasurement(Pose2d visionPose, double timestamp, double stdDev) {
+		if(DriverStation.isDisabled()) {
+			//fully sync pose estimator to vision on disable
+			poseEstimator.addVisionMeasurement(visionPose,
+					timestamp,
+					VecBuilder.fill(0.01, 0.01, 0.01));
+		} else {
 			// add some bias to odo on enable
 			poseEstimator.addVisionMeasurement(visionPose,
 					timestamp,
-					// decreases vision confidence with distance
-					VecBuilder.fill(0.01, 0.01, 0.01));
-		// }
-
-		// poseEstimator.resetOdometry(visionPose);
+					// decreases vision confidence with distance+ambiguity
+					VecBuilder.fill(stdDev, stdDev, stdDev));
+		}
 
 		VisionPosePublisher.set(visionPose);
-		// System.out.println("hello from addVisionMeasurement in " + Constants.currentRobot.toString());
 	}
 
 	

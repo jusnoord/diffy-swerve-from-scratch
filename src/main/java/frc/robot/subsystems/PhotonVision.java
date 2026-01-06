@@ -222,17 +222,17 @@ public class PhotonVision extends SubsystemBase {
     /** 
      * @param pose absolute pose of robot to inject into kalman filter
      * @param timestamp time of pose update, in seconds 
-     * @param ambiguity proportional measure of uncertainty, usually just distance in meters
+     * @param stdDev proportional measure of uncertainty, usually just distance in meters
      * this function will additionally update the robot-centric wing estimator to match
      */
     synchronized void updateCurrentRobot(TimestampedVisionUpdate update) {
-        drivetrain.addVisionMeasurement(new Pose2d(update.translation, update.rotation), update.timestamp, update.ambiguity);
+        drivetrain.addVisionMeasurement(new Pose2d(update.translation, update.rotation), update.timestamp, update.stdDev);
     }
 
     /** 
      * @param pose absolute pose of robot to inject into kalman filter
      * @param timestamp time of pose update, in seconds 
-     * @param ambiguity proportional measure of uncertainty, usually just distance in meters
+     * @param stdDev proportional measure of uncertainty, usually just distance in meters
      * this function will additionally update the robot-centric wing estimator to match
      */
     void updateOtherRobot(TimestampedVisionUpdate update) {
@@ -242,7 +242,7 @@ public class PhotonVision extends SubsystemBase {
     /** 
      * @param pose absolute pose of wing to inject into kalman filter
      * @param timestamp time of pose update, in seconds (does not matter because wing does not have odometry)
-     * @param ambiguity proportional measure of uncertainty, usually just distance in meters
+     * @param stdDev proportional measure of uncertainty, usually just distance in meters
      * this function will additionally update the robot-centric wing estimator to match
      */
     void updateWingEstimate(TimestampedVisionUpdate update) {
@@ -310,7 +310,7 @@ public class PhotonVision extends SubsystemBase {
         if (!Constants.IS_MASTER) {
             // update pose estimates for both master and slave
             double timestamp = update.timestamp;
-            double ambiguity = update.ambiguity;
+            double ambiguity = update.stdDev;
             Rotation2d rotation = update.rotation;//.unaryMinus();
             Translation2d translation = update.translation;//.unaryMinus().rotateBy(rotation);
             
@@ -350,7 +350,7 @@ public class PhotonVision extends SubsystemBase {
     }
 
     private synchronized void updateGlobalVision(TimestampedVisionUpdate update, int tagID) {
-        TimestampedVisionUpdate globalUpdate = new TimestampedVisionUpdate(getTagPose(tagID).plus(new Transform2d(update.translation, update.rotation)), update.timestamp, update.ambiguity);
+        TimestampedVisionUpdate globalUpdate = new TimestampedVisionUpdate(getTagPose(tagID).plus(new Transform2d(update.translation, update.rotation)), update.timestamp, update.stdDev);
         updateGlobalVision(globalUpdate);
     }
 
@@ -375,7 +375,7 @@ public class PhotonVision extends SubsystemBase {
         
 
         updateCurrentRobot(update); // TODO: this pose2d and transform2d math is definitely wrong // TODO Confirmed wrong via testing // TODO change so that it maintains the formation estimate
-        updateOtherRobot(new TimestampedVisionUpdate(otherRobotNewPose, update.timestamp, update.ambiguity * Math.E)); // TODO: E is a random constant
+        updateOtherRobot(new TimestampedVisionUpdate(otherRobotNewPose, update.timestamp, update.stdDev)); // TODO: E is a random constant
 
     }
 
@@ -391,7 +391,7 @@ public class PhotonVision extends SubsystemBase {
     private synchronized void updateWingVision(TimestampedVisionUpdate update, int TagID) {
         Pose2d currentRobotPose = getCurrentRobotPosition(update.timestamp);
         Pose2d wingPose = currentRobotPose.plus(new Transform2d(update.translation, update.rotation)).plus(getWingRelativePosition(TagID).inverse());
-        updateWingEstimate(new TimestampedVisionUpdate(wingPose, update.timestamp, update.ambiguity));
+        updateWingEstimate(new TimestampedVisionUpdate(wingPose, update.timestamp, update.stdDev));
     }
 
     // /** switches origin and target */
@@ -585,7 +585,7 @@ public class PhotonVision extends SubsystemBase {
                             // Translation2d masterRelativeTranslation = slaveRelativeTranslation.rotateBy(slaveHeading.minus(masterHeading)); // TODO: CHECK
                             
                             Pose2d masterRelativePose = new Pose2d(slaveRelativeTranslation.unaryMinus().rotateBy(slaveRelativeRotation.unaryMinus()), slaveRelativeRotation.unaryMinus());
-                            updateLocalVision(new TimestampedVisionUpdate(masterRelativePose, to.timestamp, to.ambiguity));
+                            updateLocalVision(new TimestampedVisionUpdate(masterRelativePose, to.timestamp, to.stdDev));
                             // commented for the moment to debugx later steps
                         }
                     }
@@ -642,8 +642,8 @@ public class PhotonVision extends SubsystemBase {
                 // Use getCameraToRobot() to get the transform from camera to robot
                 Transform3d cameraToRobot3d = cameraPosition.plus(multiTag.estimatedPose.best);
                 Transform2d cameraToRobot = new Transform2d(cameraToRobot3d.getTranslation().toTranslation2d(), cameraToRobot3d.getRotation().toRotation2d());
-                double ambiguity = multiTag.estimatedPose.ambiguity;
-                return Optional.of(new Tuple<Transform2d, Double>(cameraToRobot, ambiguity));
+                double stdDev = getStdDev(cameraToRobot3d, multiTag.estimatedPose.ambiguity);
+                return Optional.of(new Tuple<Transform2d, Double>(cameraToRobot, stdDev));
             }
             //else
             // DataLogManager.log("[PhotonVision] INFO: " + camName.toString() + " multitag result requested but not present");
@@ -652,23 +652,29 @@ public class PhotonVision extends SubsystemBase {
 
         private Optional<Tuple<Transform2d, Double>> doSingleTagUpdate(PhotonTrackedTarget target) {
             Transform3d robotToTag3d = new Transform3d();
-            double ambiguity;
+            double stdDev;
 
-            // grabs the best target from the result and sends to pose estimator, iFF the pose ambiguity is below a (hardcoded) threshold
-            if (!(target.getPoseAmbiguity() > 0.5)) { //TODO: un-hardcode this threshold
-                //grabs the target pose, relative to the camera, and compensates for the camera position
-                robotToTag3d = cameraPosition.plus(target.getBestCameraToTarget());
-                ambiguity = target.getPoseAmbiguity();
+            //grabs the target pose, relative to the camera, and compensates for the camera position
+            robotToTag3d = cameraPosition.plus(target.getBestCameraToTarget());
+            stdDev = getStdDev(robotToTag3d, target.getPoseAmbiguity());
 
 
+            Transform2d robotToTag = new Transform2d(robotToTag3d.getTranslation().toTranslation2d(), robotToTag3d.getRotation().toRotation2d());
 
-                Transform2d robotToTag = new Transform2d(robotToTag3d.getTranslation().toTranslation2d(), robotToTag3d.getRotation().toRotation2d());
+            return Optional.of(new Tuple<Transform2d, Double>(robotToTag, stdDev));
+        }
 
-                return Optional.of(new Tuple<Transform2d, Double>(robotToTag, ambiguity));
-            } 
-            //else
-            DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " pose ambiguity is high");
-            return Optional.empty();
+        private double getStdDev(Transform3d distance, double ambiguity) {
+            final double distanceK = 0.01; //constant for distance effect on stddev, 1m should give 1cm stddev
+            if(ambiguity <= 0.05) {
+                return distanceK * distance.getTranslation().getNorm();
+            } else if (ambiguity < 0.5) {
+                return distanceK * distance.getTranslation().getNorm() * 3; //3x the stddev at or before half ambiguity
+            } else {
+                //bad vision update, return 10m stddev
+                DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " pose ambiguity is high");
+                return 10;
+            }
         }
 
         private PhotonCamera getCameraObject() {
