@@ -41,7 +41,7 @@ public class InputSender extends SubsystemBase {
 		if (Constants.IS_MASTER) {
 			InputInterface.updateInputs(controller, DriverStation.isEnabled(), Timer.getFPGATimestamp(), grabJoystickVelocity());
 		} else {
-			InputInterface.updateInputs(IndependentDrive.masterOffset);
+			// InputInterface.updateInputs(IndependentDrive.masterOffset);
 		}
 	}
 

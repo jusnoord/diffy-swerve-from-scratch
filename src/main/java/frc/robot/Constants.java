@@ -18,6 +18,7 @@ import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Translation3d;
@@ -209,13 +210,13 @@ public final class Constants {
 
 		private static final double wheelBase = Units.inchesToMeters(19.75);
 		private static final double trackWidth = Units.inchesToMeters(19.75);
-		public static Pose2d[] offsetPositions = {new Pose2d(new Translation2d(0.0, 0.4), new Rotation2d()), new Pose2d(new Translation2d(0.0, -0.4), new Rotation2d())}; // default center of rotation of robot
+		public static Transform2d[] offsetPositions = {new Transform2d(new Translation2d(0.0, 0.4), new Rotation2d()), new Transform2d(new Translation2d(0.0, -0.4), new Rotation2d())}; // default center of rotation of robot
 		public static Command reset() {
 			return new InstantCommand(() -> resetOffsetPositions());
 		}
 		public static void resetOffsetPositions() {
-			offsetPositions[0] = new Pose2d(new Translation2d(0.0, 0.4), new Rotation2d());
-			offsetPositions[1] = new Pose2d(new Translation2d(0.0, -0.4), new Rotation2d());
+			offsetPositions[0] = new Transform2d(new Translation2d(0.0, 0.4), new Rotation2d());
+			offsetPositions[1] = new Transform2d(new Translation2d(0.0, -0.4), new Rotation2d());
 		}
 
 		/**

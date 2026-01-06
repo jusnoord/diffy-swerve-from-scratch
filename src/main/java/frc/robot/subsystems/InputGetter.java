@@ -53,9 +53,9 @@ public class InputGetter extends SubsystemBase {
 
 	}
     
-    public Pose2d getMasterOffset() {
-        return inputs.masterOffset;
-    }
+    // public Pose2d getMasterOffset() {
+    //     return inputs.masterOffset;
+    // }
 
     public Pose2d getLeftJoystick() {
         return new Pose2d(-0.1 * getLeftY(), -0.1 * getLeftX(), Rotation2d.fromRadians(0.4 * getLeftTriggerAxis()));

@@ -81,41 +81,64 @@ public class TandemDrive extends Command {
 
     @Override
     public void execute() {
-        // ChassisSpeeds speeds = new ChassisSpeeds(joystickVelocity.get().getX(), joystickVelocity.get().getY(), joystickVelocity.get().getRotation().getRadians());
-        // SwerveModuleState desiredState = formationKinematics.toSwerveModuleStates(speeds)[Constants.IS_MASTER ? 0 : 1];
-        Pose2d offsetPosition = RobotConfig.offsetPositions[Constants.IS_MASTER ? 0 : 1];
+        Transform2d masterOffset = RobotConfig.offsetPositions[0];
+        Transform2d slaveOffset = RobotConfig.offsetPositions[1];
+
         Pose2d currentPose = swerve.getPose();
         Pose2d masterPose = Constants.IS_MASTER ? currentPose : masterPoseSubscriber.get();
-        Pose2d robotVelocity = new Pose2d(joystickVelocity.get().getTranslation().rotateBy(masterPose.getRotation())
-            .plus(new Translation2d(joystickVelocity.get().getRotation().getRadians() * offsetPosition.getTranslation().getNorm(), 
-              offsetPosition.getTranslation().getAngle().plus(Constants.IS_MASTER ? Rotation2d.kZero : Rotation2d.kCCW_90deg).plus(offsetPosition.getRotation()).plus(masterPose.getRotation()))), 
-        joystickVelocity.get().getRotation());
+        Pose2d centerFormationPose = masterPose.plus(masterOffset.inverse());
 
-        //grab the target pose calculated by the master robot, add it onto the offset position for this robot
-        Pose2d robotTargetPose = masterPose.plus(RobotConfig.offsetPositions[1].minus(RobotConfig.offsetPositions[0]));
-
-        //calculate the speeds to drive towards the target pose
-        double xOut = robotVelocity.getX() + xPID.calculate(currentPose.getX(), robotTargetPose.getX());
-        double yOut = robotVelocity.getY() + yPID.calculate(currentPose.getY(), robotTargetPose.getY());
-        double rOut = robotVelocity.getRotation().getRadians() - anglePID.calculate(currentPose.getRotation().getRadians(), robotTargetPose.getRotation().getRadians());
+        Rotation2d rotationalSpeed = joystickVelocity.get().getRotation();
+        Translation2d translationalVelocity = joystickVelocity.get().getTranslation(); 
         
-        boolean PIDAtTolerance = anglePID.atSetpoint() && xPID.atSetpoint() && yPID.atSetpoint();
-        if (!Constants.IS_MASTER && !PIDAtTolerance) {
-            swerve.setRobotSpeeds(ChassisSpeeds.fromFieldRelativeSpeeds(xOut, yOut, rOut, currentPose.getRotation()));
+        if (Constants.IS_MASTER) {
+            double rotationalCompensationMagnitude = rotationalSpeed.getRadians() * masterOffset.getTranslation().getNorm();
+            Rotation2d rotationalComensationDirection = centerFormationPose.getRotation().plus(masterOffset.getTranslation().getAngle().plus(Rotation2d.kCCW_90deg));
+
+            Translation2d rotationalCompensation = new Translation2d(rotationalCompensationMagnitude, rotationalComensationDirection);
+
+            Pose2d robotSpeeds = new Pose2d(translationalVelocity.plus(rotationalCompensation), rotationalSpeed);
+
+            swerve.setRobotSpeeds(ChassisSpeeds.fromFieldRelativeSpeeds(robotSpeeds.getX(), robotSpeeds.getY(), robotSpeeds.getRotation().getRadians(), currentPose.getRotation()));
+
         } else {
-            swerve.setRobotSpeeds(ChassisSpeeds.fromFieldRelativeSpeeds(robotVelocity.getX(), robotVelocity.getY(), robotVelocity.getRotation().getRadians(), currentPose.getRotation()));
-        }
+            double rotationalCompensationMagnitude = rotationalSpeed.getRadians() * slaveOffset.getTranslation().getNorm();
+            Rotation2d rotationalComensationDirection = centerFormationPose.getRotation().plus(slaveOffset.getTranslation().getAngle().plus(Rotation2d.kCCW_90deg));
 
-        
-        // update the PID values from the tunable numbers
-        if(Constants.tuningMode) {
-            anglePID.setPID(kP_angle.doubleValue(), kI_angle.doubleValue(), kD_angle.doubleValue());
-            xPID.setPID(kP.doubleValue(), kI.doubleValue(), kD.doubleValue());
-            yPID.setPID(kP.doubleValue(), kI.doubleValue(), kD.doubleValue());
-        }
+            Translation2d rotationalCompensation = new Translation2d(rotationalCompensationMagnitude, rotationalComensationDirection);
+            Pose2d robotSpeeds = new Pose2d(rotationalCompensation.plus(translationalVelocity), rotationalSpeed);
 
-        //update telemetry
-        targetPosePublisher.accept(robotTargetPose);
+            // new Pose2d(joystickVelocity.get().getTranslation().rotateBy(masterPose.getRotation())
+            //     .plus(new Translation2d(joystickVelocity.get().getRotation().getRadians() * offsetPosition.getTranslation().getNorm(), 
+            //       offsetPosition.getTranslation().getAngle().plus(Constants.IS_MASTER ? Rotation2d.kZero : Rotation2d.kCCW_90deg).plus(offsetPosition.getRotation()).plus(masterPose.getRotation()))), 
+            // joystickVelocity.get().getRotation());
+
+            //grab the target pose calculated by the master robot, add it onto the offset position for this robot
+            Pose2d robotTargetPose = centerFormationPose.plus(RobotConfig.offsetPositions[1]);
+
+            //calculate the speeds to drive towards the target pose
+            double xOut = robotSpeeds.getX() + xPID.calculate(currentPose.getX(), robotTargetPose.getX());
+            double yOut = robotSpeeds.getY() + yPID.calculate(currentPose.getY(), robotTargetPose.getY());
+            double rOut = robotSpeeds.getRotation().getRadians() - anglePID.calculate(currentPose.getRotation().getRadians(), robotTargetPose.getRotation().getRadians());
+            
+            boolean PIDAtTolerance = anglePID.atSetpoint() && xPID.atSetpoint() && yPID.atSetpoint();
+            if (!PIDAtTolerance) {
+                swerve.setRobotSpeeds(ChassisSpeeds.fromFieldRelativeSpeeds(xOut, yOut, rOut, currentPose.getRotation()));
+            } else {
+                swerve.setRobotSpeeds(ChassisSpeeds.fromFieldRelativeSpeeds(robotSpeeds.getX(), robotSpeeds.getY(), robotSpeeds.getRotation().getRadians(), currentPose.getRotation()));
+            }
+
+            
+            // update the PID values from the tunable numbers
+            if(Constants.tuningMode) {
+                anglePID.setPID(kP_angle.doubleValue(), kI_angle.doubleValue(), kD_angle.doubleValue());
+                xPID.setPID(kP.doubleValue(), kI.doubleValue(), kD.doubleValue());
+                yPID.setPID(kP.doubleValue(), kI.doubleValue(), kD.doubleValue());
+            }
+
+            //update telemetry
+            targetPosePublisher.accept(robotTargetPose);
+        }
     }
 
     @Override

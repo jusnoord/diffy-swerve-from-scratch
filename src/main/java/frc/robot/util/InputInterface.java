@@ -52,7 +52,7 @@ public class InputInterface {
 		isEnabledPublisher = table.getBooleanTopic("isEnabled").publish();
 		timeStampPublisher = table.getDoubleTopic("timeStamp").publish();
 		joystickVelocityPublisher = table.getStructTopic("joystickVelocity", Pose2d.struct).publish();
-		masterOffsetPublisher = table.getStructTopic("masterOffset", Pose2d.struct).publish();
+		// masterOffsetPublisher = table.getStructTopic("masterOffset", Pose2d.struct).publish();
 	}
 
 	public static void updateInputs(Pose2d masterOffset) {
@@ -72,7 +72,7 @@ public class InputInterface {
 		isEnabledPublisher.set(inputs.isEnabled);
 		timeStampPublisher.set(inputs.timeStamp);
 		joystickVelocityPublisher.set(joystickVelocity);
-		masterOffsetPublisher.set(inputs.masterOffset);
+		// masterOffsetPublisher.set(inputs.masterOffset);
 	}
 
 	// client-side
@@ -136,10 +136,10 @@ public class InputInterface {
 		public boolean isEnabled;
 		public double timeStamp;
 		public Pose2d joystickVelocity;
-		public Pose2d masterOffset = RobotConfig.offsetPositions[0];
+		// public Transform2d masterOffset = RobotConfig.offsetPositions[0];
 		
 		public Inputs (Pose2d masterOffset) {
-			this.masterOffset = masterOffset;
+			// this.masterOffset = masterOffset;
 		}
 
 		public Inputs(XboxController controller, boolean isenabled, double timeStamp, Pose2d joystickVelocity) {
@@ -168,7 +168,7 @@ public class InputInterface {
 		}
 		public Inputs(XboxController controller, boolean isenabled, double timeStamp, Pose2d joystickVelocity, Pose2d masterOffset) {
 			this.joystickVelocity = joystickVelocity;
-			this.masterOffset = masterOffset;
+			// this.masterOffset = masterOffset;
 
 			//double values
 			this.isEnabled = isenabled;
@@ -194,7 +194,7 @@ public class InputInterface {
 
 		public Inputs(double[] sticks, boolean[] buttons, boolean isEnabled, double timeStamp, Pose2d joystickVelocity, Pose2d masterOffset) {
 			this.joystickVelocity = joystickVelocity;
-			this.masterOffset = masterOffset;
+			// this.masterOffset = masterOffset;
 			//double values
 			this.leftX = MathUtil.applyDeadband(sticks[0], JoystickConstants.deadband);
 			this.leftY = MathUtil.applyDeadband(sticks[1], JoystickConstants.deadband);

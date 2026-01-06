@@ -83,11 +83,11 @@ public class FollowPath extends Command {
 
     @Override
     public void execute() {
-        Pose2d offsetPosition = RobotConfig.offsetPositions[Constants.IS_MASTER ? 0 : 1];
+        Transform2d offsetPosition = RobotConfig.offsetPositions[Constants.IS_MASTER ? 0 : 1];
         Pose2d currentPose = swerve.getPose(); // replace with getting the formation ppose
         Pose2d masterPose = Constants.IS_MASTER ? currentPose : masterPoseSubscriber.get();
         Pose2d robotVelocity = path.getVelocity(currentPose, anglePIDRobot); // add formation offset
-        Pose2d robotTargetPose = masterPose.plus(RobotConfig.offsetPositions[1].minus(RobotConfig.offsetPositions[0]));
+        Pose2d robotTargetPose = masterPose.plus(RobotConfig.offsetPositions[1].plus(RobotConfig.offsetPositions[0].inverse()));
 
         double xOut = robotVelocity.getX() + xPID.calculate(currentPose.getX(), robotTargetPose.getX());
         double yOut = robotVelocity.getY() + yPID.calculate(currentPose.getY(), robotTargetPose.getY());
