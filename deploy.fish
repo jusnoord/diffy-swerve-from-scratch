@@ -7,7 +7,7 @@ if test $argv = "master"
     set -g IP_ADDRESS 10.93.12.2
 else if test $argv = "slave"
     echo "Setting up for slave robot deployment..."
-    set -g IP_ADDRESS 10.93.12.4
+    set -g IP_ADDRESS 10.93.12.5
 else
     echo "Error: Invalid argument. Please specify 'slave' or 'master'."
     exit 1

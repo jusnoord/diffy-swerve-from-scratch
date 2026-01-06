@@ -24,7 +24,7 @@ public class TimestampedVisionUpdateStruct implements Struct<TimestampedVisionUp
 
   @Override
   public String getSchema() {
-    return "Pose2d pose;double timestamp;double ambiguity";
+    return "Pose2d pose;double timestamp;double stdDev";
   }
 
   @Override
@@ -36,15 +36,15 @@ public class TimestampedVisionUpdateStruct implements Struct<TimestampedVisionUp
   public TimestampedVisionUpdate unpack(ByteBuffer bb) {
     Pose2d pose = Pose2d.struct.unpack(bb);
     double timestamp = bb.getDouble();
-    double ambiguity = bb.getDouble();
-    return new TimestampedVisionUpdate(pose, timestamp, ambiguity);
+    double stdDev = bb.getDouble();
+    return new TimestampedVisionUpdate(pose, timestamp, stdDev);
   }
 
   @Override
   public void pack(ByteBuffer bb, TimestampedVisionUpdate value) {
     Pose2d.struct.pack(bb, new Pose2d(value.translation, value.rotation));
     bb.putDouble(value.timestamp);
-    bb.putDouble(value.ambiguity);
+    bb.putDouble(value.stdDev);
   }
 
   @Override
