@@ -368,14 +368,14 @@ public class PhotonVision extends SubsystemBase {
         Pose2d updateRobotPose = new Pose2d(update.translation, update.rotation);
 
         Pose2d otherRobotPose = getOtherRobotPosition(update.timestamp);
-        
-        Translation2d translationDiff = updateRobotPose.getTranslation().minus(currentRobotPose.getTranslation()); // global frame
-        Rotation2d rotationDiff = updateRobotPose.getRotation().minus(currentRobotPose.getRotation());
 
-        Pose2d otherRobotNewPose = new Pose2d(otherRobotPose.getTranslation().plus(translationDiff.rotateBy(rotationDiff)), otherRobotPose.getRotation().plus(rotationDiff));
+        Transform2d robotOffset = otherRobotPose.minus(currentRobotPose);
+
+        Pose2d otherRobotNewPose = updateRobotPose.plus(robotOffset);
+        
 
         updateCurrentRobot(update); // TODO: this pose2d and transform2d math is definitely wrong // TODO Confirmed wrong via testing // TODO change so that it maintains the formation estimate
-        updateOtherRobot(new TimestampedVisionUpdate(otherRobotNewPose, update.timestamp, update.ambiguity * Math.E)); // todo: E is a random constant
+        updateOtherRobot(new TimestampedVisionUpdate(otherRobotNewPose, update.timestamp, update.ambiguity * Math.E)); // TODO: E is a random constant
 
     }
 
