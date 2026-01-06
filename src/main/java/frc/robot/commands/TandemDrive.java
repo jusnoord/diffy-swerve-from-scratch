@@ -19,6 +19,7 @@ import edu.wpi.first.networktables.DoubleEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructEntry;
 import edu.wpi.first.networktables.StructSubscriber;
+import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.Constants;
 import frc.robot.Robot;
@@ -36,6 +37,8 @@ public class TandemDrive extends Command {
 
     private StructEntry<Pose2d> targetPosePublisher;
     private StructSubscriber<Pose2d> masterPoseSubscriber;
+
+    private StructPublisher<Pose2d> robotSpeedPublisher;
 
 
 
@@ -56,7 +59,7 @@ public class TandemDrive extends Command {
         this.swerve = swerve;
         this.joystickVelocity = joystickVelocity;
         masterPoseSubscriber = NetworkTableInstance.getDefault().getTable(Constants.RobotType.master.toString()).getStructTopic("RobotPose", Pose2d.struct).subscribe(new Pose2d());
-
+        robotSpeedPublisher = NetworkTableInstance.getDefault().getTable(Constants.currentRobot.toString()).getStructTopic("desired tandem speed", Pose2d.struct).publish();
         addRequirements(swerve);
     }
 
@@ -92,20 +95,24 @@ public class TandemDrive extends Command {
         Translation2d translationalVelocity = joystickVelocity.get().getTranslation(); 
         
         if (Constants.IS_MASTER) {
+            Translation2d centerToMaster = currentPose.getTranslation().minus(centerFormationPose.getTranslation());
             double rotationalCompensationMagnitude = rotationalSpeed.getRadians() * masterOffset.getTranslation().getNorm();
-            Rotation2d rotationalComensationDirection = centerFormationPose.getRotation().plus(masterOffset.getTranslation().getAngle().plus(Rotation2d.kCCW_90deg));
+            Rotation2d rotationalCompensationDirection = centerToMaster.getAngle().plus(Rotation2d.kCW_90deg);
 
-            Translation2d rotationalCompensation = new Translation2d(rotationalCompensationMagnitude, rotationalComensationDirection);
+            Translation2d rotationalCompensation = new Translation2d(rotationalCompensationMagnitude, rotationalCompensationDirection);
 
             Pose2d robotSpeeds = new Pose2d(translationalVelocity.plus(rotationalCompensation), rotationalSpeed);
+            robotSpeedPublisher.accept(new Pose2d(new Translation2d(), rotationalCompensationDirection));
 
             swerve.setRobotSpeeds(ChassisSpeeds.fromFieldRelativeSpeeds(robotSpeeds.getX(), robotSpeeds.getY(), robotSpeeds.getRotation().getRadians(), currentPose.getRotation()));
 
         } else {
-            double rotationalCompensationMagnitude = rotationalSpeed.getRadians() * slaveOffset.getTranslation().getNorm();
-            Rotation2d rotationalComensationDirection = centerFormationPose.getRotation().plus(slaveOffset.getTranslation().getAngle().plus(Rotation2d.kCCW_90deg));
+            Translation2d centerToSlave = currentPose.getTranslation().minus(centerFormationPose.getTranslation());
 
-            Translation2d rotationalCompensation = new Translation2d(rotationalCompensationMagnitude, rotationalComensationDirection);
+            double rotationalCompensationMagnitude = rotationalSpeed.getRadians() * slaveOffset.getTranslation().getNorm();
+            Rotation2d rotationalCompensationDirection = centerToSlave.getAngle().plus(Rotation2d.kCW_90deg);
+
+            Translation2d rotationalCompensation = new Translation2d(rotationalCompensationMagnitude, rotationalCompensationDirection);
             Pose2d robotSpeeds = new Pose2d(rotationalCompensation.plus(translationalVelocity), rotationalSpeed);
 
             // new Pose2d(joystickVelocity.get().getTranslation().rotateBy(masterPose.getRotation())
@@ -135,6 +142,7 @@ public class TandemDrive extends Command {
                 xPID.setPID(kP.doubleValue(), kI.doubleValue(), kD.doubleValue());
                 yPID.setPID(kP.doubleValue(), kI.doubleValue(), kD.doubleValue());
             }
+            robotSpeedPublisher.accept(new Pose2d(new Translation2d(), rotationalCompensationDirection));
 
             //update telemetry
             targetPosePublisher.accept(robotTargetPose);

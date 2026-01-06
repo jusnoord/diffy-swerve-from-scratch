@@ -48,8 +48,11 @@ public class IndependentDrive extends Command {
       slaveCurrentPosePublisher = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("slave pose", Pose2d.struct).publish();       
       masterPoseSubscriber = NetworkTableInstance.getDefault().getTable(Constants.RobotType.master.toString()).getStructTopic("RobotPose", Pose2d.struct).subscribe(new Pose2d());
     } else {
-      masterOffsetSubscriber = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("master offset", Transform2d.struct).subscribe(new Transform2d(-1, -1, new Rotation2d()));       
-      slaveOffsetSubscriber = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("slave offset", Transform2d.struct).subscribe(new Transform2d(-1, -1, new Rotation2d()));       
+      masterOffsetSubscriber = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.getOpposite().toString()).getStructTopic("master offset", Transform2d.struct).subscribe(new Transform2d(-1, -1, new Rotation2d()));       
+      slaveOffsetSubscriber = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.getOpposite().toString()).getStructTopic("slave offset", Transform2d.struct).subscribe(new Transform2d(-1, -1, new Rotation2d()));       
+      masterOffsetPublisher = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("master offset", Transform2d.struct).publish();     // telemetry only  
+      slaveOffsetPublisher = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("slave offset", Transform2d.struct).publish();       // telemetry only
+
     }
     addRequirements(swerve);
   }
@@ -76,7 +79,7 @@ public class IndependentDrive extends Command {
       Transform2d slaveOffset = new Transform2d(currentPose.getTranslation().minus(formationCenterPose.getTranslation()).rotateBy(masterPose.getRotation().times(-1)), currentPose.getRotation().minus(formationCenterPose.getRotation()));
       RobotConfig.offsetPositions[1] = slaveOffset;
       RobotConfig.offsetPositions[0] = masterOffset;
-
+ 
       centerPosePublisher.accept(formationCenterPose);
       masterOffsetPublisher.accept(masterOffset);
       slaveOffsetPublisher.accept(slaveOffset);
@@ -85,8 +88,12 @@ public class IndependentDrive extends Command {
       masterCurrentPosePublisher.accept(masterPose);
       slaveCurrentPosePublisher.accept(currentPose);
     } else {
+      System.out.println("rob 1 " + RobotConfig.offsetPositions[1].getX() + "," + RobotConfig.offsetPositions[1].getY());
+      System.out.println("rob 2 " + RobotConfig.offsetPositions[1].getX() + "," + RobotConfig.offsetPositions[1].getY());
       RobotConfig.offsetPositions[1] = slaveOffsetSubscriber.get();
       RobotConfig.offsetPositions[0] = masterOffsetSubscriber.get();
+      masterOffsetPublisher.accept(RobotConfig.offsetPositions[0]);// telemetry only
+      slaveOffsetPublisher.accept(RobotConfig.offsetPositions[1]); // telemetry only
     }
 
     // System.out.println(RobotConfig.offsetPositions[0] + " | " + RobotConfig.offsetPositions[1]);

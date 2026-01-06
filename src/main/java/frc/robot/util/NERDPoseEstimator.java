@@ -386,17 +386,17 @@ public class NERDPoseEstimator {
 
 		double distanceFromVision = odometrySample.get().getTranslation().getDistance(visionRobotPoseMeters.getTranslation());
 
-        // if (distanceFromVision > 0.05) {
-        //     //offset the current odometry by the vision pose
-        //     Pose2d offsetPose = getOdometry().plus(visionRobotPoseMeters.minus(odometrySample.get()));
-		// 	if(offsetPose.getTranslation().getDistance(visionRobotPoseMeters.getTranslation()) > 0.05) {
-        //         resetOdometry(visionRobotPoseMeters);
-        //     } else {
-        //         resetOdometry(offsetPose);
-        //     }
-		// } else {
-        //     setOdometryMeasurementStdDevs(VecBuilder.fill(distanceFromVision * 3, distanceFromVision * 3, distanceFromVision * 3));
-        // }
+        if (distanceFromVision > 0.05) {
+            //offset the current odometry by the vision pose
+            Pose2d offsetPose = getOdometry().plus(visionRobotPoseMeters.minus(odometrySample.get()));
+			if(offsetPose.getTranslation().getDistance(visionRobotPoseMeters.getTranslation()) > 0.05) {
+                resetOdometry(visionRobotPoseMeters);
+            } else {
+                resetOdometry(offsetPose);
+            }
+		} else {
+            setOdometryMeasurementStdDevs(VecBuilder.fill(distanceFromVision * 3, distanceFromVision * 3, distanceFromVision * 3));
+        }
     }
 
     /**

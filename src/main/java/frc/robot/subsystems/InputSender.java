@@ -46,6 +46,6 @@ public class InputSender extends SubsystemBase {
 	}
 
 	private Pose2d grabJoystickVelocity() {
-        return new Pose2d(new Translation2d((MathUtil.applyDeadband(xLimiter.calculate(controller.getRightY()), JoystickConstants.deadband)), (MathUtil.applyDeadband(yLimiter.calculate(controller.getRightX()), JoystickConstants.deadband))).times(-0.05), new Rotation2d((MathUtil.applyDeadband(rotationalLimiter.calculate(controller.getLeftX()), JoystickConstants.deadband))).times(-0.2));
+        return new Pose2d(new Translation2d((MathUtil.applyDeadband(xLimiter.calculate(controller.getRightY()), JoystickConstants.deadband)), (MathUtil.applyDeadband(yLimiter.calculate(controller.getRightX()), JoystickConstants.deadband))).times(-0.15), new Rotation2d((MathUtil.applyDeadband(rotationalLimiter.calculate(controller.getLeftX()), JoystickConstants.deadband))).times(-0.2));
 	}
 }

@@ -39,6 +39,7 @@ import edu.wpi.first.units.LinearVelocityUnit;
 import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -59,7 +60,7 @@ public class Swerve extends SubsystemBase {
 	
 	private final ArrayList<DrivePod> pods = new ArrayList<DrivePod>();
 
-	private final LegacyPoseEstimator poseEstimator;
+	private final NERDPoseEstimator poseEstimator;
 	private final SwerveDriveKinematics drivetrainKinematics;
 
 	public double targetAngle = 0;
@@ -92,7 +93,7 @@ public class Swerve extends SubsystemBase {
 
 
 		// initialize odometry based on the pod positions
-		poseEstimator = new LegacyPoseEstimator(
+		poseEstimator = new NERDPoseEstimator(
 				drivetrainKinematics,
 				getGyro(),
 				getModulePositions(),
@@ -130,7 +131,7 @@ public class Swerve extends SubsystemBase {
 	public void periodic() {
 		
 		//update odometry
-		poseEstimator.update(getGyro(), getModulePositions());
+		poseEstimator.updateWithTime(Timer.getFPGATimestamp(), getGyro(), getModulePositions());
 
 		//update telemetry
 		field2d.setRobotPose(getPose());
