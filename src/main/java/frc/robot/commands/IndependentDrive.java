@@ -31,7 +31,7 @@ public class IndependentDrive extends Command {
 	private SlewRateLimiter xLimiter = new SlewRateLimiter(0);
 	private SlewRateLimiter yLimiter = new SlewRateLimiter(0); //0.1
 	private SlewRateLimiter rotationalLimiter = new SlewRateLimiter(0); //1.2
-  private StructSubscriber<Pose2d> masterPoseSubscriber;
+  private StructSubscriber<Pose2d> masterPoseSubscriber, masterOffsetSubscriber, slaveOffsetSubscriber;
   private StructPublisher<Pose2d> centerPosePublisher, masterOffsetPublisher, slaveOffsetPublisher, slaveTargetPosePublisher, masterCurrentPosePublisher, slaveCurrentPosePublisher;
   // private Pose2d formationCenterPosition = new Pose2d();
   
@@ -40,14 +40,18 @@ public class IndependentDrive extends Command {
     this.leftJoystickVelocity = leftJoystickVelocity;
     this.rightJoystickVelocity = rightJoystickVelocity;
     this.masterOffsetSupplier = masterOffsetSupplier;
-    centerPosePublisher = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("center pose", Pose2d.struct).publish();       
-    masterOffsetPublisher = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("master offset", Pose2d.struct).publish();       
-    slaveOffsetPublisher = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("slave offset", Pose2d.struct).publish();       
-    slaveTargetPosePublisher = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("slave target", Pose2d.struct).publish();       
-    masterCurrentPosePublisher = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("master pose", Pose2d.struct).publish();       
-    slaveCurrentPosePublisher = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("slave pose", Pose2d.struct).publish();       
-    masterPoseSubscriber = NetworkTableInstance.getDefault().getTable(Constants.RobotType.master.toString()).getStructTopic("RobotPose", Pose2d.struct).subscribe(new Pose2d());
-    
+    if (!Constants.IS_MASTER) {
+      centerPosePublisher = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("center pose", Pose2d.struct).publish();       
+      masterOffsetPublisher = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("master offset", Pose2d.struct).publish();       
+      slaveOffsetPublisher = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("slave offset", Pose2d.struct).publish();       
+      slaveTargetPosePublisher = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("slave target", Pose2d.struct).publish();       
+      masterCurrentPosePublisher = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("master pose", Pose2d.struct).publish();       
+      slaveCurrentPosePublisher = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("slave pose", Pose2d.struct).publish();       
+      masterPoseSubscriber = NetworkTableInstance.getDefault().getTable(Constants.RobotType.master.toString()).getStructTopic("RobotPose", Pose2d.struct).subscribe(new Pose2d());
+    } else {
+      masterOffsetSubscriber = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("master offset", Pose2d.struct).subscribe(new Pose2d(-1, -1, new Rotation2d()));       
+      masterOffsetSubscriber = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("slave offset", Pose2d.struct).subscribe(new Pose2d(-1, -1, new Rotation2d()));       
+    }
     addRequirements(swerve);
   }
 
@@ -79,6 +83,9 @@ public class IndependentDrive extends Command {
       slaveTargetPosePublisher.accept(masterPose.plus(RobotConfig.offsetPositions[1].minus(RobotConfig.offsetPositions[0])));
       masterCurrentPosePublisher.accept(masterPose);
       slaveCurrentPosePublisher.accept(currentPose);
+    } else {
+      RobotConfig.offsetPositions[1] = slaveOffsetSubscriber.get();
+      RobotConfig.offsetPositions[0] = masterOffsetSubscriber.get();
     }
   }
 
