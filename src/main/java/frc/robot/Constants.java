@@ -157,18 +157,27 @@ public final class Constants {
 
 	public final class VisionConstants {
 		//forward, left, height; roll, pitch, yaw
-		public static final Translation2d centerOfMasterToTag = new Translation2d(0.267, 0.0); // meters, distance from the center of the master robot to the tag
-		public static final Transform3d SLAVE_CAMERA_LOCATION = new Transform3d(new Translation3d(0.2, 0.0, 0.0), new Rotation3d(Degrees.of(0), Degrees.of(0), Degrees.of(0)));
-
-
+		public static final Transform2d tagPose = new Transform2d(new Translation2d(0.197, 0), new Rotation2d()); // meters, distance from the center of the master robot to the tag
+		public static final Transform3d cameraPose = new Transform3d(new Translation3d(0.254, 0, 0),new Rotation3d());
+		// public static final Transform3d cameraPose = new Transform3d(new Translation3d(0.0, 0, 0),new Rotation3d());
 		//TODO: fix these
 		public static final ArrayList<Integer> RobotTagIDs = new ArrayList<>(Arrays.asList(17, 18, 19, 20));
-		public static final ArrayList<Integer> StationTagIDs = new ArrayList<>(Arrays.asList(1));
+		public static final ArrayList<Integer> GlobalTagIDs = new ArrayList<>(Arrays.asList(1));
 		public static final ArrayList<Integer> WingTagIDs = new ArrayList<>(Arrays.asList(2));
 
-		// public static final Map<Integer, Pose2d> fieldTagPoses = new HashMap<>() {{
-		// 	put(1, new Pose2d(0, 0, Rotation2d.fromDegrees(0)));
-		// }};
+		public static final Map<Integer, Transform2d> tagPoses = new HashMap<>() {{
+			//robot-relative tags
+			put(17, new Transform2d(0, -0.116, Rotation2d.fromDegrees(-35)));
+			put(18, new Transform2d(0, -0.116, Rotation2d.fromDegrees(-35)));
+			put(19, new Transform2d(0, 0.116, Rotation2d.fromDegrees(35)));
+			put(20, new Transform2d(0, 0.116, Rotation2d.fromDegrees(35)));
+
+			//field-relative tags
+			put(1, new Transform2d(0, 0, Rotation2d.fromDegrees(0)));
+
+			//wing tags
+			put(2, new Transform2d(0, 0, Rotation2d.fromDegrees(0)));
+		}};
 	}
 
 	/**

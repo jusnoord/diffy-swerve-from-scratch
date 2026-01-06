@@ -49,7 +49,7 @@ public class IndependentDrive extends Command {
       masterPoseSubscriber = NetworkTableInstance.getDefault().getTable(Constants.RobotType.master.toString()).getStructTopic("RobotPose", Pose2d.struct).subscribe(new Pose2d());
     } else {
       masterOffsetSubscriber = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("master offset", Transform2d.struct).subscribe(new Transform2d(-1, -1, new Rotation2d()));       
-      masterOffsetSubscriber = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("slave offset", Transform2d.struct).subscribe(new Transform2d(-1, -1, new Rotation2d()));       
+      slaveOffsetSubscriber = NetworkTableInstance.getDefault().getTable("IndependentDrive").getSubTable(Constants.currentRobot.toString()).getStructTopic("slave offset", Transform2d.struct).subscribe(new Transform2d(-1, -1, new Rotation2d()));       
     }
     addRequirements(swerve);
   }
