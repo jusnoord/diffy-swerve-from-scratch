@@ -87,7 +87,7 @@ public class TandemDrive extends Command {
         Pose2d currentPose = swerve.getPose();
         Pose2d masterPose = Constants.IS_MASTER ? currentPose : masterPoseSubscriber.get();
         Pose2d robotVelocity = new Pose2d(joystickVelocity.get().getTranslation().rotateBy(masterPose.getRotation())
-            .plus(new Translation2d(joystickVelocity.get().getRotation().getRadians() * offsetPosition.getTranslation().getNorm() * 1.6180339887, 
+            .plus(new Translation2d(joystickVelocity.get().getRotation().getRadians() * offsetPosition.getTranslation().getNorm(), 
               offsetPosition.getTranslation().getAngle().plus(Constants.IS_MASTER ? Rotation2d.kZero : Rotation2d.kCCW_90deg).plus(offsetPosition.getRotation()).plus(masterPose.getRotation()))), 
         joystickVelocity.get().getRotation());
 

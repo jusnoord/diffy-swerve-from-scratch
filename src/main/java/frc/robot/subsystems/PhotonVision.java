@@ -96,7 +96,7 @@ public class PhotonVision extends SubsystemBase {
     public PhotonVision(Swerve drivetrain, CameraName camName) {
         this.drivetrain = drivetrain;
 
-        camThread = new CameraThread(camName, RobotConstants.SLAVE_CAMERA_LOCATION);
+        camThread = new CameraThread(camName, VisionConstants.SLAVE_CAMERA_LOCATION);
         camThread.start();
 
 
@@ -330,7 +330,7 @@ public class PhotonVision extends SubsystemBase {
             // Translation2d newSlaveTranslation = displacementGlobalFrame.times(0.5).plus(centerOfFormation);
             // Translation2d newMasterTranslation = displacementGlobalFrame.times(-0.5).plus(centerOfFormation);
 
-            Pose2d newPose = new Pose2d(RobotConstants.centerOfMasterToTag.plus(otherPosition.getTranslation().plus(translation.rotateBy(otherPosition.getRotation()))), otherPosition.getRotation().plus(rotation));
+            Pose2d newPose = new Pose2d(VisionConstants.centerOfMasterToTag.plus(otherPosition.getTranslation().plus(translation.rotateBy(otherPosition.getRotation()))), otherPosition.getRotation().plus(rotation));
             // Pose2d newSlavePose = new Pose2d(newSlaveTranslation, newSlaveRotation);
             updateCurrentRobot(new TimestampedVisionUpdate(newPose,timestamp,ambiguity));
             // updateOtherRobot(new TimestampedVisionUpdate(newSlavePose,timestamp,ambiguity));

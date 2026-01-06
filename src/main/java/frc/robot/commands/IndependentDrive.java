@@ -28,9 +28,6 @@ public class IndependentDrive extends Command {
   private final Swerve swerve;
   private final Supplier<Pose2d> leftJoystickVelocity, rightJoystickVelocity, masterOffsetSupplier;
   
-	private SlewRateLimiter xLimiter = new SlewRateLimiter(0);
-	private SlewRateLimiter yLimiter = new SlewRateLimiter(0); //0.1
-	private SlewRateLimiter rotationalLimiter = new SlewRateLimiter(0); //1.2
   private StructSubscriber<Pose2d> masterPoseSubscriber, masterOffsetSubscriber, slaveOffsetSubscriber;
   private StructPublisher<Pose2d> centerPosePublisher, masterOffsetPublisher, slaveOffsetPublisher, slaveTargetPosePublisher, masterCurrentPosePublisher, slaveCurrentPosePublisher;
   // private Pose2d formationCenterPosition = new Pose2d();
@@ -57,17 +54,19 @@ public class IndependentDrive extends Command {
 
   @Override
   public void initialize() {
-    xLimiter.reset(0);
-    yLimiter.reset(0);
-    rotationalLimiter.reset(0);
+    System.out.println("IndependentDrive initialized");
+
     // formationCenterPosition = 
   }
 
   @Override
   public void execute() {
     Pose2d velocity = Constants.IS_MASTER ? leftJoystickVelocity.get() : rightJoystickVelocity.get();
-    swerve.setRobotSpeeds(new ChassisSpeeds(xLimiter.calculate(velocity.getX()), yLimiter.calculate(velocity.getY()), rotationalLimiter.calculate(velocity.getRotation().getRadians())));
+    swerve.setRobotSpeeds(new ChassisSpeeds(velocity.getX(), velocity.getY(), velocity.getRotation().getRadians()));
+    System.out.println("IndependentDrive executing");
+    
     if (!Constants.IS_MASTER) {
+      System.out.println("IndependentDrive slave executing");
       Pose2d masterPose = masterPoseSubscriber.get();
       Pose2d currentPose = swerve.getPose();
       Pose2d formationCenterPose = new Pose2d(masterPose.getTranslation().plus(currentPose.getTranslation()).times(0.5), masterPose.getRotation());
@@ -87,6 +86,13 @@ public class IndependentDrive extends Command {
       RobotConfig.offsetPositions[1] = slaveOffsetSubscriber.get();
       RobotConfig.offsetPositions[0] = masterOffsetSubscriber.get();
     }
+
+    // System.out.println(RobotConfig.offsetPositions[0] + " | " + RobotConfig.offsetPositions[1]);
+  }
+
+  @Override
+  public void end(boolean interrupted) {
+    System.out.println("IndependentDrive ended");
   }
 
   // Returns true when the command should end.
