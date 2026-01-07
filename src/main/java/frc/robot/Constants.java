@@ -61,10 +61,55 @@ public final class Constants {
 	public final class RobotMap {
 
 
+		public static enum CameraType {
+			front, back, top;
+			
+			public final CameraName getCameraName() {
+				if (IS_MASTER) {
+					switch (this) {
+						case front:
+							return CameraName.masterFront;
+						case back:
+							return CameraName.masterBack;
+						case top:
+							return CameraName.masterTop;
+						default:
+							return CameraName.masterFront;
+					}
+				} else {
+					switch (this) {
+						case front:
+							return CameraName.slaveFront;
+						case back:
+							return CameraName.slaveBack;
+						case top:
+							return CameraName.slaveTop;
+						default:
+							return CameraName.slaveFront;
+					}
+				}
+			}
+
+			public final Transform3d getCameraPose() {
+				switch (this) {
+					case front:
+						return VisionConstants.frontCameraPose;
+					case back:
+						return VisionConstants.backCameraPose;
+					case top:
+						return VisionConstants.topCameraPose;
+					default:
+						return VisionConstants.frontCameraPose;
+				}
+			}
+		}
 		// Camera IDs. this is for individual camera-threads, but there's only one so its fine
 		public static enum CameraName {
-			slaveFront, masterFront
+			slaveFront, masterFront, masterBack, masterTop, slaveBack, slaveTop
 		}
+
+
+
 
 		/**
 		 * PodConfig holds configuration for a single swerve pod.
@@ -158,7 +203,9 @@ public final class Constants {
 	public final class VisionConstants {
 		//forward, left, height; roll, pitch, yaw
 		public static final Transform2d tagPose = new Transform2d(new Translation2d(0.197, 0), new Rotation2d()); // meters, distance from the center of the master robot to the tag
-		public static final Transform3d cameraPose = new Transform3d(new Translation3d(0.254, 0, 0),new Rotation3d());
+		public static final Transform3d frontCameraPose = new Transform3d(new Translation3d(0.254, 0, 0),new Rotation3d());
+		public static final Transform3d backCameraPose = new Transform3d(new Translation3d(-0.118, 0, 0),new Rotation3d(0, 20, 0));
+		public static final Transform3d topCameraPose = new Transform3d(new Translation3d(0.229, 0, 0),new Rotation3d(0, 90, 0));
 		// public static final Transform3d cameraPose = new Transform3d(new Translation3d(0.0, 0, 0),new Rotation3d());
 		//TODO: fix these
 		public static final ArrayList<Integer> RobotTagIDs = new ArrayList<>(Arrays.asList(17, 18, 19, 20));

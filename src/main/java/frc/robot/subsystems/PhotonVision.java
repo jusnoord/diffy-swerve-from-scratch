@@ -55,6 +55,7 @@ import frc.robot.Constants.RobotConstants;
 import frc.robot.Constants.RobotType;
 import frc.robot.Constants.VisionConstants;
 import frc.robot.Constants.RobotMap.CameraName;
+import frc.robot.Constants.RobotMap.CameraType;
 import frc.robot.util.Triplet;
 import frc.robot.util.Tuple;
 import frc.robot.util.WingPoseEstimator;
@@ -95,13 +96,17 @@ public class PhotonVision extends SubsystemBase {
 
     private Swerve drivetrain;
 
-    private CameraThread camThread;
+    private CameraThread frontCamThread, backCamThread, topCamThread;
 
-    public PhotonVision(Swerve drivetrain, CameraName camName) {
+    public PhotonVision(Swerve drivetrain) {
         this.drivetrain = drivetrain;
 
-        camThread = new CameraThread(camName, VisionConstants.cameraPose);
-        camThread.start();
+        frontCamThread = new CameraThread(CameraType.front.getCameraName(), CameraType.front.getCameraPose());
+        backCamThread = new CameraThread(CameraType.back.getCameraName(), CameraType.back.getCameraPose());
+        topCamThread = new CameraThread(CameraType.top.getCameraName(), CameraType.top.getCameraPose());
+        frontCamThread.start();
+        backCamThread.start();
+        topCamThread.start();
 
 
         posePublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("pose for localization only", Pose2d.struct).publish(PubSubOption.sendAll(true));
