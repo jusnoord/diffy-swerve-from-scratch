@@ -28,6 +28,7 @@ import frc.robot.commands.PointAndDrive;
 import frc.robot.commands.SpinManually;
 import frc.robot.commands.TandemDrive;
 import frc.robot.subsystems.Swerve;
+import frc.robot.util.WingPoseEstimator;
 import frc.robot.subsystems.InputGetter;
 import frc.robot.subsystems.InputSender;
 import frc.robot.subsystems.PhotonVision;
@@ -40,6 +41,7 @@ public class RobotContainer {
 	public final Swerve swerve;
     private InputGetter inputGetter;
     private PhotonVision photonVision;
+	private WingPoseEstimator wingPoseEstimator;
 	private CommandXboxController temp = new CommandXboxController(0);
 
 	public RobotContainer() {
@@ -48,11 +50,11 @@ public class RobotContainer {
 		new InputSender();
         if(Constants.IS_MASTER) {
 			swerve = new Swerve(0);
-			photonVision = new PhotonVision(swerve);
         } else {
 			swerve = new Swerve(1);
-			photonVision = new PhotonVision(swerve);
 		}
+		wingPoseEstimator = new WingPoseEstimator();
+		photonVision = new PhotonVision(swerve, wingPoseEstimator);
 		// swerve.setDefaultCommand(new IndependentDrive(swerve, () -> new Pose2d(1, 1, new Rotation2d(43)), () -> new Pose2d(1, 1, new Rotation2d(43)), () -> new Pose2d(1, 1, new Rotation2d(43))));
 		new Trigger(() -> inputGetter.getAButton()).onTrue(new IndependentDrive(swerve, () -> inputGetter.getLeftJoystick(), () -> inputGetter.getRightJoystick()));
 		new Trigger(() -> inputGetter.getBButton()).onTrue(new TandemDrive(swerve, inputGetter::getJoystickVelocity).ignoringDisable(true));

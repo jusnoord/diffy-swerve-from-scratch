@@ -12,6 +12,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import edu.wpi.first.math.controller.PIDController;
@@ -186,6 +187,7 @@ public final class Constants {
 		public static final double motorMaxOutput = 1.0; // max output of the motors
 
 		//PID gains for tandem drive controller
+		// these double as the "fast" gain schedule for autodrive
 		public static final double tandemkP = 0.3;
 		public static final double tandemkI = 0.0;
 		public static final double tandemkD = 0.0;
@@ -193,6 +195,21 @@ public final class Constants {
 		public static final double tandemkP_angle = 0.3;
 		public static final double tandemkI_angle = 0.0;
 		public static final double tandemkD_angle = 0.0;
+
+		public static final double tandemAngleTolerance = 0.02; // radians
+		public static final double tandemPositionTolerance = 0.01; // meters
+
+		//autodrive gains (slow gain schedule)
+		public static final double autoDrivekP = 0.2;
+		public static final double autoDrivekI = 0.0;
+		public static final double autoDrivekD = 0.0;
+
+		public static final double autoDrivekP_angle = 0.2;
+		public static final double autoDrivekI_angle = 0.0;
+		public static final double autoDrivekD_angle = 0.0;
+
+		public static final double autoDriveAngleTolerance = 0.05; // radians
+		public static final double autoDrivePositionTolerance = 0.03; // meters
 
 		public static final double tandemTranslation_deadband = 0.008;
 		public static final double tandemAngle_deadband = 0.005;
@@ -205,14 +222,17 @@ public final class Constants {
 		public static final Transform2d tagPose = new Transform2d(new Translation2d(0.197, 0), new Rotation2d()); // meters, distance from the center of the master robot to the tag
 		public static final Transform3d frontCameraPose = new Transform3d(new Translation3d(0.254, 0, 0),new Rotation3d());
 		public static final Transform3d backCameraPose = new Transform3d(new Translation3d(-0.118, 0, 0),new Rotation3d(0, Units.degreesToRadians(-20), Units.degreesToRadians(180)));
-		public static final Transform3d topCameraPose = new Transform3d(new Translation3d(0.229, 0, 0),new Rotation3d(0, Units.degreesToRadians(-90), 0));
+		public static final Transform3d topCameraPose = new Transform3d(new Translation3d(0.229, 0, 0),new Rotation3d(Units.degreesToRadians(0), Units.degreesToRadians(-90), Units.degreesToRadians(180)));
 		// public static final Transform3d cameraPose = new Transform3d(new Translation3d(0.0, 0, 0),new Rotation3d());
 		//TODO: fix these
 		public static final ArrayList<Integer> RobotTagIDs = new ArrayList<>(Arrays.asList(17, 18, 19, 20));
-		public static final ArrayList<Integer> WingTagIDs = new ArrayList<>(Arrays.asList(1,2));
-		public static final ArrayList<Integer> GlobalTagIDs = new ArrayList<>(Arrays.asList(6,7,8));
+		public static final ArrayList<Integer> WingTagIDs = new ArrayList<>(Arrays.asList(1, 2));
+		public static final ArrayList<Integer> GlobalTagIDs = new ArrayList<>(Arrays.asList(5,6,7,8));
 
 		public static final Map<Integer, Transform2d> tagPoses = new HashMap<>() {{
+			// testing tag
+			put(5, new Transform2d(0, 0, Rotation2d.fromDegrees(0)));
+
 			//robot-relative tags
 			put(17, new Transform2d(0, -0.116, Rotation2d.fromDegrees(-35)));
 			put(18, new Transform2d(0, -0.116, Rotation2d.fromDegrees(-35)));
@@ -220,16 +240,23 @@ public final class Constants {
 			put(20, new Transform2d(0, 0.116, Rotation2d.fromDegrees(35)));
 
 			//field-relative tags
-			put(5, new Transform2d(0, 0, Rotation2d.fromDegrees(0)));
 			put(6, new Transform2d(0, Units.feetToMeters(2), Rotation2d.fromDegrees(0)));
 			put(7, new Transform2d(0, Units.feetToMeters(6), Rotation2d.fromDegrees(0)));
 			put(8, new Transform2d(0, Units.feetToMeters(10), Rotation2d.fromDegrees(0)));
 									// x could be negated here idk but I have high confidence that the axes are not swapped and the y and angles are correct
 			//wing tags
-			put(1, new Transform2d(1.562, 0, Rotation2d.fromDegrees(0))); 
-			put(2, new Transform2d(0, 0, Rotation2d.fromDegrees(0)));
+			put(1, new Transform2d(0, 1.562, Rotation2d.fromDegrees(0))); 
+			put(2, new Transform2d(0, 0, Rotation2d.fromDegrees(0))); // (2.77, 0.99)
 									// axes could be swapped here idk since its upside down
 		}};
+	}
+
+	public final class DemoConstants {
+		public static final Pose2d masterWingApproximate = new Pose2d(1.5, 0, Rotation2d.fromDegrees(90));
+		public static final Pose2d slaveWingApproximate = new Pose2d(1.5, 2, Rotation2d.fromDegrees(-90));
+
+		public static final Pose2d stationPosition = new Pose2d(0.5, 0.5, Rotation2d.fromDegrees(0));
+		
 	}
 
 	/**

@@ -98,7 +98,7 @@ public class PhotonVision extends SubsystemBase {
 
     private CameraThread frontCamThread, backCamThread, topCamThread;
 
-    public PhotonVision(Swerve drivetrain) {
+    public PhotonVision(Swerve drivetrain, WingPoseEstimator wingPoseEstimator) {
         this.drivetrain = drivetrain;
 
         frontCamThread = new CameraThread(CameraType.front.getCameraName(), CameraType.front.getCameraPose());
@@ -108,7 +108,7 @@ public class PhotonVision extends SubsystemBase {
         backCamThread.start();
         topCamThread.start();
 
-        wingPoseEstimator = new WingPoseEstimator();
+        this.wingPoseEstimator = wingPoseEstimator;
 
 
 
@@ -280,7 +280,7 @@ public class PhotonVision extends SubsystemBase {
      */
     private synchronized void updateWingVision(TimestampedVisionUpdate update, int TagID) {
         Pose2d currentRobotPose = getCurrentRobotPosition(update.timestamp);
-        Pose2d wingPose = currentRobotPose.plus(new Transform2d(update.translation, update.rotation)).plus(getTagPose(TagID));
+        Pose2d wingPose = currentRobotPose.plus(new Transform2d(update.translation, update.rotation).inverse()).plus(getTagPose(TagID).inverse());
         wingPosePublisher.accept(wingPose);
 
         updateWingEstimate(new TimestampedVisionUpdate(wingPose, update.timestamp, update.stdDev));
@@ -422,7 +422,12 @@ public class PhotonVision extends SubsystemBase {
         Pose2d otherRobotNewPose = updateRobotPose.plus(robotOffset);
         
 
-        updateCurrentRobot(update); // TODO: this pose2d and transform2d math is definitely wrong // TODO Confirmed wrong via testing // TODO change so that it maintains the formation estimate
+        if(Constants.IS_MASTER) {
+            updateCurrentRobot(update);
+        } else {
+            // updateOtherRobot(new TimestampedVisionUpdate(otherRobotNewPose, update.timestamp, update.stdDev));
+        }
+        // updateCurrentRobot(update); // TODO: this pose2d and transform2d math is definitely wrong // TODO Confirmed wrong via testing // TODO change so that it maintains the formation estimate
         // updateOtherRobot(new TimestampedVisionUpdate(otherRobotNewPose, update.timestamp, update.stdDev)); // TODO: E is a random constant
 
     }
@@ -574,7 +579,7 @@ public class PhotonVision extends SubsystemBase {
 
                             } else if(VisionConstants.WingTagIDs.contains(target.getFiducialId())) {
                                 // only single-tag for wing tags
-                                var singleTagUpdate = doSingleTagUpdate(target);
+                                var singleTagUpdate = doSingleWingTagUpdate(target);
                                 if (singleTagUpdate.isPresent()) {
                                     var tuple = singleTagUpdate.get();
                                     robotToTag = tuple.k;
@@ -690,9 +695,31 @@ public class PhotonVision extends SubsystemBase {
 
         private Optional<Tuple<Transform2d, Double>> doSingleTagUpdate(PhotonTrackedTarget target) {
             //grabs the target pose, relative to the camera, and compensates for the camera position
-            Transform3d cameraToRobot3d = cameraPosition.plus(target.getBestCameraToTarget()).inverse();
-            Transform2d cameraToRobot = new Transform2d(cameraToRobot3d.getTranslation().toTranslation2d(), cameraToRobot3d.getRotation().toRotation2d());
-            double stdDev = getStdDev(cameraToRobot3d, target.getPoseAmbiguity());
+            Transform3d cameraToRobot3d = cameraPosition.plus(target.getBestCameraToTarget());
+            Transform2d cameraToRobot = new Transform2d(cameraToRobot3d.getTranslation().toTranslation2d(), cameraToRobot3d.getRotation().toRotation2d()).inverse();
+            double stdDev = getStdDev(cameraToRobot3d, target.getPoseAmbiguity()) + 0.5;
+
+            if(cameraToRobot.getTranslation() == null || cameraToRobot.getRotation() == null || cameraToRobot.getRotation().getSin() == Double.NaN || cameraToRobot.getRotation().getCos() == Double.NaN) {
+                DataLogManager.log("[PhotonVision] ERROR: " + camName.toString() + " single-tag pose update returned null values");
+                return Optional.empty();
+            }
+
+
+            return Optional.of(new Tuple<Transform2d, Double>(cameraToRobot, stdDev));
+        }
+        /** 
+         * hardcoded solution to solve geometry for tags on the ceiling
+         */
+        private Optional<Tuple<Transform2d, Double>> doSingleWingTagUpdate(PhotonTrackedTarget target) {
+            //grabs the target pose, relative to the camera, and compensates for the camera position
+            Transform3d cameraToRobot3d = cameraPosition.plus(target.getBestCameraToTarget());
+            Transform2d cameraToRobot = new Transform2d(cameraToRobot3d.getTranslation().toTranslation2d(), new Rotation2d(target.getBestCameraToTarget().getRotation().getMeasureX().negate())).inverse();
+            double stdDev = getStdDev(cameraToRobot3d, target.getPoseAmbiguity()) + 0.5;
+
+            if(cameraToRobot.getTranslation() == null || cameraToRobot.getRotation() == null || cameraToRobot.getRotation().getSin() == Double.NaN || cameraToRobot.getRotation().getCos() == Double.NaN) {
+                DataLogManager.log("[PhotonVision] ERROR: " + camName.toString() + " single-tag pose update returned null values");
+                return Optional.empty();
+            }
 
 
             return Optional.of(new Tuple<Transform2d, Double>(cameraToRobot, stdDev));
