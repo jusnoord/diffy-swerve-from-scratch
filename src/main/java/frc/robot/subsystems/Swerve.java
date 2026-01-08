@@ -127,11 +127,17 @@ public class Swerve extends SubsystemBase {
 
 	}
 
-	@Override
-	public void periodic() {
-		
+	public synchronized void updateOdo() {
 		//update odometry
 		poseEstimator.updateWithTime(Timer.getFPGATimestamp(), getGyro(), getModulePositions());
+
+	}
+
+	@Override
+	public void periodic() {
+
+		updateOdo();
+		
 
 		//update telemetry
 		field2d.setRobotPose(getPose());

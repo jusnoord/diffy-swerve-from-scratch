@@ -1,5 +1,7 @@
 package frc.robot.util;
 
+import org.ejml.data.SingularMatrixException;
+
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.Nat;
 import edu.wpi.first.math.StateSpaceUtil;
@@ -23,8 +25,8 @@ public class WingPoseEstimator {
     private Matrix<N3, N1> stateStdDevs;
     private Matrix<N3, N1> measurementStdDevs;
     private final Matrix<N3, N1> ZERO_MATRIX = new Matrix<>(Nat.N3(), Nat.N1());
-    private StructPublisher<Pose2d> posePublisher;
-    private StructSubscriber<Pose2d> slavePoseSubscriber;
+    // private StructPublisher<Pose2d> posePublisher;
+    // private StructSubscriber<Pose2d> slavePoseSubscriber;
     private double lastAngle = 0;
     private double lastTime = Timer.getFPGATimestamp();
 
@@ -49,29 +51,34 @@ public class WingPoseEstimator {
         // technically no inputs, but we have to put something in
         wingPoseKF = new KalmanFilter<N3, N3, N3>(matrixSize, matrixSize, plant, stateStdDevs, measurementStdDevs, 0.05);
 
-        posePublisher = NetworkTableInstance.getDefault().getTable("WingPoseEstimator").getStructTopic("wing pose estimate", Pose2d.struct).publish();
-        slavePoseSubscriber = NetworkTableInstance.getDefault().getTable("WingPoseEstimator").getStructTopic("slave pose subscriber", Pose2d.struct).subscribe(new Pose2d());
+        // posePublisher = NetworkTableInstance.getDefault().getTable("WingPoseEstimator").getStructTopic("wing pose estimate", Pose2d.struct).publish();
+        // slavePoseSubscriber = NetworkTableInstance.getDefault().getTable("WingPoseEstimator").getStructTopic("slave pose subscriber", Pose2d.struct).subscribe(new Pose2d());
 
     }
 
     public void addVisionMeasurement(Pose2d input) {
-        double x = input.getX();
-        double y = input.getY();
-        double wrappedTheta = input.getRotation().getRadians();
-        
-        // unwrap angle so there are no sudden jumps in the kalman input
-        double delta = wrappedTheta - lastAngle;
-        if (delta > Math.PI) {
-            wrappedTheta -= 2 * Math.PI;
-        } else if (delta < -Math.PI) {
-            wrappedTheta += 2 * Math.PI;
+        try {
+            double x = input.getX();
+            double y = input.getY();
+            double wrappedTheta = input.getRotation().getRadians();
+            
+            // unwrap angle so there are no sudden jumps in the kalman input
+            double delta = wrappedTheta - lastAngle;
+            if (delta > Math.PI) {
+                wrappedTheta -= 2 * Math.PI;
+            } else if (delta < -Math.PI) {
+                wrappedTheta += 2 * Math.PI;
+            }
+
+            double theta = lastAngle + (wrappedTheta - lastAngle);
+            lastAngle = theta;
+
+            Matrix<N3, N1> measurement = VecBuilder.fill(x, y, theta);
+            wingPoseKF.correct(ZERO_MATRIX, measurement); // no control input
+
+        } catch (SingularMatrixException e) {
+            System.out.println("[PhotonVision]: WARNING: SingularMatrixException caught in wing pose estimator: " + input.toString());
         }
-
-        double theta = lastAngle + (wrappedTheta - lastAngle);
-        lastAngle = theta;
-
-        Matrix<N3, N1> measurement = VecBuilder.fill(x, y, theta);
-        wingPoseKF.correct(ZERO_MATRIX, measurement); // no control input
     }
 
     public void addVisionMeasurement(Pose2d input, Matrix<N3, N1> measurementStdDevs) {
@@ -98,18 +105,22 @@ public class WingPoseEstimator {
     }
 
     public void periodic() {
-        double loopTime = Timer.getFPGATimestamp() - lastTime;
-        lastTime = Timer.getFPGATimestamp();
-        wingPoseKF.predict(ZERO_MATRIX, loopTime); // no control input
+        try {
+            double loopTime = Timer.getFPGATimestamp() - lastTime;
+            lastTime = Timer.getFPGATimestamp();
+            wingPoseKF.predict(ZERO_MATRIX, loopTime); // no control input
 
-        //grab other robot's wing poses
-        Pose2d[] slaveWingPoses = slavePoseSubscriber.readQueueValues();
-        for(Pose2d pose : slaveWingPoses) {
-            addVisionMeasurement(pose);
+            //grab other robot's wing poses
+            // Pose2d[] slaveWingPoses = slavePoseSubscriber.readQueueValues();
+            // for(Pose2d pose : slaveWingPoses) {
+            //     addVisionMeasurement(pose);
+            // }
+
+            //telemetry
+            // posePublisher.accept(getEstimatedPose());
+        } catch (SingularMatrixException e) {
+            System.out.println("[PhotonVision]: WARNING: SingularMatrixException caught in wing pose estimator");
         }
-
-        //telemetry
-        posePublisher.accept(getEstimatedPose());
     }
 
     public Pose2d getEstimatedPose() {
