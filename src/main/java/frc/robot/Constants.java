@@ -204,13 +204,13 @@ public final class Constants {
 		//forward, left, height; roll, pitch, yaw
 		public static final Transform2d tagPose = new Transform2d(new Translation2d(0.197, 0), new Rotation2d()); // meters, distance from the center of the master robot to the tag
 		public static final Transform3d frontCameraPose = new Transform3d(new Translation3d(0.254, 0, 0),new Rotation3d());
-		public static final Transform3d backCameraPose = new Transform3d(new Translation3d(-0.118, 0, 0),new Rotation3d(0, 20, 0));
+		public static final Transform3d backCameraPose = new Transform3d(new Translation3d(-0.118, 0, 0),new Rotation3d(0, 200, 0));
 		public static final Transform3d topCameraPose = new Transform3d(new Translation3d(0.229, 0, 0),new Rotation3d(0, 90, 0));
 		// public static final Transform3d cameraPose = new Transform3d(new Translation3d(0.0, 0, 0),new Rotation3d());
 		//TODO: fix these
 		public static final ArrayList<Integer> RobotTagIDs = new ArrayList<>(Arrays.asList(17, 18, 19, 20));
 		public static final ArrayList<Integer> WingTagIDs = new ArrayList<>(Arrays.asList(1,2));
-		public static final ArrayList<Integer> GlobalTagIDs = new ArrayList<>(Arrays.asList(3,4,5,6));
+		public static final ArrayList<Integer> GlobalTagIDs = new ArrayList<>(Arrays.asList(5,6));
 
 		public static final Map<Integer, Transform2d> tagPoses = new HashMap<>() {{
 			//robot-relative tags

@@ -280,7 +280,7 @@ public class PhotonVision extends SubsystemBase {
      */
     private synchronized void updateWingVision(TimestampedVisionUpdate update, int TagID) {
         Pose2d currentRobotPose = getCurrentRobotPosition(update.timestamp);
-        Pose2d wingPose = currentRobotPose.plus(new Transform2d(update.translation, update.rotation).inverse()).plus(getTagPose(TagID));
+        Pose2d wingPose = currentRobotPose.plus(new Transform2d(update.translation, update.rotation)).plus(getTagPose(TagID));
         wingPosePublisher.accept(wingPose);
 
         updateWingEstimate(new TimestampedVisionUpdate(wingPose, update.timestamp, update.stdDev));
@@ -422,7 +422,7 @@ public class PhotonVision extends SubsystemBase {
         
 
         updateCurrentRobot(update); // TODO: this pose2d and transform2d math is definitely wrong // TODO Confirmed wrong via testing // TODO change so that it maintains the formation estimate
-        updateOtherRobot(new TimestampedVisionUpdate(otherRobotNewPose, update.timestamp, update.stdDev)); // TODO: E is a random constant
+        // updateOtherRobot(new TimestampedVisionUpdate(otherRobotNewPose, update.timestamp, update.stdDev)); // TODO: E is a random constant
 
     }
     // /** switches origin and target */
@@ -565,7 +565,7 @@ public class PhotonVision extends SubsystemBase {
                                     var tuple = singleTagUpdate.get();
                                     robotToTag = tuple.k;
                                     ambiguity = tuple.v;
-                                    // updateGlobalVision(new TimestampedVisionUpdate(robotToTag, timestamp, ambiguity), target.getFiducialId()); // TODO: specify which tag or something cuz we have insufficient information right now                               
+                                    updateGlobalVision(new TimestampedVisionUpdate(robotToTag, timestamp, ambiguity), target.getFiducialId()); // TODO: specify which tag or something cuz we have insufficient information right now                               
                                 } else {
                                     //single-tag method failed
                                     DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " single-tag pose update failed for station tag");
@@ -689,13 +689,12 @@ public class PhotonVision extends SubsystemBase {
 
         private Optional<Tuple<Transform2d, Double>> doSingleTagUpdate(PhotonTrackedTarget target) {
             //grabs the target pose, relative to the camera, and compensates for the camera position
-            Transform3d robotToTag3d = cameraPosition.plus(target.getBestCameraToTarget());
-            double stdDev = getStdDev(robotToTag3d, target.getPoseAmbiguity());
+            Transform3d cameraToRobot3d = target.getBestCameraToTarget().plus(cameraPosition.inverse()).inverse();
+            Transform2d cameraToRobot = new Transform2d(cameraToRobot3d.getTranslation().toTranslation2d(), cameraToRobot3d.getRotation().toRotation2d());
+            double stdDev = getStdDev(cameraToRobot3d, target.getPoseAmbiguity());
 
 
-            Transform2d robotToTag = new Transform2d(robotToTag3d.getTranslation().toTranslation2d(), robotToTag3d.getRotation().toRotation2d());
-
-            return Optional.of(new Tuple<Transform2d, Double>(robotToTag, stdDev));
+            return Optional.of(new Tuple<Transform2d, Double>(cameraToRobot, stdDev));
         }
 
         private double getStdDev(Transform3d distance, double ambiguity) {
