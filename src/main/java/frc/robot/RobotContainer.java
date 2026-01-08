@@ -21,17 +21,20 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.Constants.DemoConstants;
 import frc.robot.Constants.JoystickConstants;
+import frc.robot.Constants.PathConstants;
 import frc.robot.Constants.RobotMap.CameraName;
 import frc.robot.Constants.RobotConfig;
 import frc.robot.commands.AutoDrive;
 import frc.robot.commands.DemoDrive;
 import frc.robot.commands.DriveCommand;
+import frc.robot.commands.FollowPath;
 import frc.robot.commands.IndependentDrive;
 import frc.robot.commands.PointAndDrive;
 import frc.robot.commands.SpinManually;
 import frc.robot.commands.SyncOffsets;
 import frc.robot.commands.TandemDrive;
 import frc.robot.subsystems.Swerve;
+import frc.robot.util.Path;
 import frc.robot.util.WingPoseEstimator;
 import frc.robot.subsystems.InputGetter;
 import frc.robot.subsystems.InputSender;
@@ -75,6 +78,7 @@ public class RobotContainer {
 		new Trigger(inputGetter::getXButton).onTrue(new SyncOffsets(swerve).withTimeout(1));
 		new Trigger(inputGetter::getLeftBumper).whileTrue(new TandemDrive(swerve, inputGetter::getJoystickVelocity));
 		new Trigger(inputGetter::getRightBumper).whileTrue(new IndependentDrive(swerve, () -> inputGetter.getLeftJoystick(), () -> inputGetter.getRightJoystick()));
+		new Trigger(inputGetter::getYButton).onTrue(new FollowPath(swerve, new Path(PathConstants.wayPoints, PathConstants.defaultSpeed, PathConstants.lookAhead)));
 		
 		// swerve.setDefaultCommand(new DemoDrive(swerve, wingPoseEstimator, inputGetter));
 

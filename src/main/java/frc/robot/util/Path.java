@@ -14,11 +14,13 @@ import edu.wpi.first.math.geometry.Rotation2d;
 public class Path {
     private List<Pose2d> waypoints;
     private double lookAhead;
-    private double speed;
+    private final double defaultSpeed;
     private int currentWaypointIndex = 0;
 
-    public Path(List<Pose2d> waypoints) {
+    public Path(List<Pose2d> waypoints, double defaultSpeed, double lookAhead) {
         this.waypoints = waypoints;
+        this.defaultSpeed = defaultSpeed;
+        this.lookAhead = lookAhead;
     }
 
     /** 
@@ -107,6 +109,13 @@ public class Path {
 
     public Pose2d getVelocity(Pose2d currentPose, PIDController angleController) {
         Pose2d nextWaypoint = getNextWaypoint(currentPose);
+        double distance = currentPose.getTranslation().getDistance(nextWaypoint.getTranslation());
+        double speed;
+        if (distance >= lookAhead) {
+            speed = defaultSpeed; 
+        } else {
+            speed = defaultSpeed * distance / lookAhead; 
+        }
         double dx = nextWaypoint.getX() - currentPose.getX();
         double dy = nextWaypoint.getY() - currentPose.getY();
         double angle = Math.atan2(dy, dx);

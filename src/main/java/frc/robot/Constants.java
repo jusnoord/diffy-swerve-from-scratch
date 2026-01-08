@@ -7,8 +7,6 @@ package frc.robot;
 import static edu.wpi.first.units.Units.Degrees;
 
 import java.io.File;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -177,6 +175,39 @@ public final class Constants {
 		}
 	}
 
+	public static final class PathConstants {
+		public static final double defaultSpeed = 0.1; // m/s
+		public static final double lookAhead = 0.1; // meters
+		public static final List<Pose2d> wayPoints = new ArrayList<Pose2d>()
+		{
+			{
+				add(new Pose2d(1.5, 0.5, Rotation2d.fromDegrees(0))); // start
+
+				add(new Pose2d(1.45, 0.5, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(1.40, 0.5, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(1.35, 0.5, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(1.30, 0.5, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(1.25, 0.5, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(1.20, 0.5, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(1.15, 0.5, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(1.10, 0.5, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(1.05, 0.5, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(1.00, 0.5, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(0.95, 0.5, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(0.90, 0.5, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(0.85, 0.5, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(0.80, 0.5, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(0.75, 0.5, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(0.70, 0.5, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(0.65, 0.5, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(0.60, 0.5, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(0.55, 0.5, Rotation2d.fromDegrees(0)));
+
+				add(new Pose2d(0.5, 0.5, Rotation2d.fromDegrees(0))); // end
+			}
+		};
+	}
+
 	/**
 	 * RobotConstants contains robot-wide constants for control and hardware.
 	 * Includes speed limits, PID gains, and camera/vision offsets.
@@ -301,13 +332,13 @@ public final class Constants {
 
 		private static final double wheelBase = Units.inchesToMeters(19.75);
 		private static final double trackWidth = Units.inchesToMeters(19.75);
-		public static Transform2d[] offsetPositions = {new Transform2d(new Translation2d(0.0, 0.4), new Rotation2d()), new Transform2d(new Translation2d(0.0, -0.4), new Rotation2d())}; // default center of rotation of robot
+		public static Transform2d[] offsetPositions = {new Transform2d(new Translation2d(-0.781, 0.0), new Rotation2d()), new Transform2d(new Translation2d(0.781, 0.0), new Rotation2d(Math.PI))}; // default center of rotation of robot
 		public static Command reset() {
 			return new InstantCommand(() -> resetOffsetPositions());
 		}
 		public static void resetOffsetPositions() {
-			offsetPositions[0] = new Transform2d(new Translation2d(0.0, 0.4), new Rotation2d());
-			offsetPositions[1] = new Transform2d(new Translation2d(0.0, -0.4), new Rotation2d());
+			offsetPositions[0] = new Transform2d(new Translation2d(-0.781, 0.0), new Rotation2d());
+			offsetPositions[1] = new Transform2d(new Translation2d(0.781, 0.0), new Rotation2d(Math.PI));
 		}
 
 		/**
