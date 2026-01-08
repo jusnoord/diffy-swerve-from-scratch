@@ -18,6 +18,7 @@ import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.networktables.StructSubscriber;
 import edu.wpi.first.wpilibj.Timer;
 import frc.robot.Constants;
+import frc.robot.Constants.DemoConstants;
 
 public class WingPoseEstimator {
     private KalmanFilter<N3, N3, N3> wingPoseKF;
@@ -25,7 +26,7 @@ public class WingPoseEstimator {
     private Matrix<N3, N1> stateStdDevs;
     private Matrix<N3, N1> measurementStdDevs;
     private final Matrix<N3, N1> ZERO_MATRIX = new Matrix<>(Nat.N3(), Nat.N1());
-    // private StructPublisher<Pose2d> posePublisher;
+    private StructPublisher<Pose2d> posePublisher;
     // private StructSubscriber<Pose2d> slavePoseSubscriber;
     private double lastAngle = 0;
     private double lastTime = Timer.getFPGATimestamp();
@@ -51,7 +52,7 @@ public class WingPoseEstimator {
         // technically no inputs, but we have to put something in
         wingPoseKF = new KalmanFilter<N3, N3, N3>(matrixSize, matrixSize, plant, stateStdDevs, measurementStdDevs, 0.05);
 
-        // posePublisher = NetworkTableInstance.getDefault().getTable("WingPoseEstimator").getStructTopic("wing pose estimate", Pose2d.struct).publish();
+        posePublisher = NetworkTableInstance.getDefault().getTable("WingPoseEstimator").getStructTopic(Constants.currentRobot.toString() + " pose estimate", Pose2d.struct).publish();
         // slavePoseSubscriber = NetworkTableInstance.getDefault().getTable("WingPoseEstimator").getStructTopic("slave pose subscriber", Pose2d.struct).subscribe(new Pose2d());
 
     }
@@ -117,7 +118,7 @@ public class WingPoseEstimator {
             // }
 
             //telemetry
-            // posePublisher.accept(getEstimatedPose());
+            posePublisher.accept(getEstimatedPose());
         } catch (SingularMatrixException e) {
             System.out.println("[PhotonVision]: WARNING: SingularMatrixException caught in wing pose estimator");
         }
@@ -129,6 +130,10 @@ public class WingPoseEstimator {
         double theta = wingPoseKF.getXhat(2);
 
         Pose2d estimatedPose = new Pose2d(x, y, new Rotation2d(theta));
+
+        if(estimatedPose.equals(Pose2d.kZero)) {
+            return Constants.IS_MASTER ? DemoConstants.masterWingApproximate : DemoConstants.slaveWingApproximate;
+        }
         
         return estimatedPose;
     }

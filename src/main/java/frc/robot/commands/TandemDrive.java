@@ -67,8 +67,8 @@ public class TandemDrive extends Command {
     public void initialize() {
         anglePID.enableContinuousInput(0, Math.PI * 2);
         anglePID.setTolerance(0.02);
-        xPID.setTolerance(0.01);
-        yPID.setTolerance(0.01);
+        xPID.setTolerance(0.02);
+        yPID.setTolerance(0.02);
 
         
         if(Constants.IS_MASTER) {

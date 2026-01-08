@@ -16,9 +16,9 @@ public class DemoDrive extends SequentialCommandGroup {
         Pose2d wingApproximate = Constants.IS_MASTER ? DemoConstants.masterWingApproximate : DemoConstants.slaveWingApproximate;
         addCommands(
             new AutoDrive(swerve, () -> wingApproximate, true), // follow path to approximate wing position
-            new AutoDrive(swerve, wingPoseEstimator::getEstimatedPose, false), // PID to exact wing position
-            new SyncOffsets(swerve).withTimeout(1), // sync offsets TODO: 1 second is random
-            new TandemDrive(swerve, inputGetter::getJoystickVelocity).until(inputGetter::getRightBumper) // tandem drive with other robot manually
+            new AutoDrive(swerve, wingPoseEstimator::getEstimatedPose, false) // PID to exact wing position
+            // new SyncOffsets(swerve).withTimeout(1), // sync offsets TODO: 1 second is random
+            // new TandemDrive(swerve, inputGetter::getJoystickVelocity).until(inputGetter::getRightBumper) // tandem drive with other robot manually
             
             // 
         );

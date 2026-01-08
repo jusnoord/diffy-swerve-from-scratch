@@ -196,23 +196,26 @@ public final class Constants {
 		public static final double tandemkI_angle = 0.0;
 		public static final double tandemkD_angle = 0.0;
 
-		public static final double tandemAngleTolerance = 0.02; // radians
-		public static final double tandemPositionTolerance = 0.01; // meters
+		public static final double tandemAngleTolerance = 0.06; // radians
+		public static final double tandemPositionTolerance = 0.05; // meters
 
 		//autodrive gains (slow gain schedule)
-		public static final double autoDrivekP = 0.2;
+		public static final double autoDrivekP = 0.3;
 		public static final double autoDrivekI = 0.0;
 		public static final double autoDrivekD = 0.0;
 
-		public static final double autoDrivekP_angle = 0.2;
+		public static final double autoDrivekP_angle = 0.3;
 		public static final double autoDrivekI_angle = 0.0;
 		public static final double autoDrivekD_angle = 0.0;
 
-		public static final double autoDriveAngleTolerance = 0.05; // radians
-		public static final double autoDrivePositionTolerance = 0.03; // meters
+		public static final double autoDriveAngleTolerance = 0.1; // radians
+		public static final double autoDrivePositionTolerance = 0.1; // meters
 
 		public static final double tandemTranslation_deadband = 0.008;
 		public static final double tandemAngle_deadband = 0.005;
+
+		public static final double maxAutoDriveSpeedMetersPerSecond = 1.0; // m/s
+		public static final double maxAutoDriveAngularSpeedRadiansPerSecond = 2.0; // rad/s
 
 	}
 
@@ -245,15 +248,15 @@ public final class Constants {
 			put(8, new Transform2d(0, Units.feetToMeters(10), Rotation2d.fromDegrees(0)));
 									// x could be negated here idk but I have high confidence that the axes are not swapped and the y and angles are correct
 			//wing tags
-			put(1, new Transform2d(0, 1.562, Rotation2d.fromDegrees(0))); 
-			put(2, new Transform2d(0, 0, Rotation2d.fromDegrees(0))); // (2.77, 0.99)
+			put(1, new Transform2d(0, 0, Rotation2d.fromDegrees(90))); 
+			put(2, new Transform2d(0, 0, Rotation2d.fromDegrees(-90))); // (2.77, 0.99)
 									// axes could be swapped here idk since its upside down
 		}};
 	}
 
 	public final class DemoConstants {
-		public static final Pose2d masterWingApproximate = new Pose2d(1.5, 0, Rotation2d.fromDegrees(90));
-		public static final Pose2d slaveWingApproximate = new Pose2d(1.5, 2, Rotation2d.fromDegrees(-90));
+		public static final Pose2d masterWingApproximate = new Pose2d(2.7, 1, Rotation2d.fromDegrees(90));
+		public static final Pose2d slaveWingApproximate = new Pose2d(2.7, 2.562, Rotation2d.fromDegrees(-90));
 
 		public static final Pose2d stationPosition = new Pose2d(0.5, 0.5, Rotation2d.fromDegrees(0));
 		

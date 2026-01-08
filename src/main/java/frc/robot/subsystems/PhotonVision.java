@@ -48,6 +48,7 @@ import edu.wpi.first.networktables.TimestampedObject;
 import edu.wpi.first.units.measure.Time;
 import edu.wpi.first.wpilibj.DataLogManager;
 import edu.wpi.first.wpilibj.Filesystem;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
@@ -90,6 +91,8 @@ public class PhotonVision extends SubsystemBase {
     
     private StructPublisher<TimestampedVisionUpdate> offsetPublisher; // transform
     private StructSubscriber<TimestampedVisionUpdate> offsetSubscriber;
+
+    private double timeOfLastLocalUpdate;
     // public Pose2d pose = new Pose2d();
 
     // public KalmanFilter wingEstimator = new KalmanFilter(3, 3);
@@ -346,6 +349,8 @@ public class PhotonVision extends SubsystemBase {
      */
     private synchronized void updateLocalVision(TimestampedVisionUpdate update, RobotType caller) {
         if (!Constants.IS_MASTER) {
+            timeOfLastLocalUpdate = Timer.getFPGATimestamp();
+
             double timestamp = update.timestamp;
             double ambiguity = update.stdDev;
             Rotation2d rotation = update.rotation.unaryMinus();
@@ -412,20 +417,25 @@ public class PhotonVision extends SubsystemBase {
      * @param update measured absolute position of current robot along with timestamp of measurement
      */
     private synchronized void updateGlobalVision(TimestampedVisionUpdate update) {
-        Pose2d currentRobotPose = getCurrentRobotPosition(update.timestamp);
-        Pose2d updateRobotPose = new Pose2d(update.translation, update.rotation);
+        // Pose2d currentRobotPose = getCurrentRobotPosition(update.timestamp);
+        // Pose2d updateRobotPose = new Pose2d(update.translation, update.rotation);
 
-        Pose2d otherRobotPose = getOtherRobotPosition(update.timestamp);
+        // Pose2d otherRobotPose = getOtherRobotPosition(update.timestamp);
 
-        Transform2d robotOffset = otherRobotPose.minus(currentRobotPose);
+        // Transform2d robotOffset = otherRobotPose.minus(currentRobotPose);
 
-        Pose2d otherRobotNewPose = updateRobotPose.plus(robotOffset);
+        // Pose2d otherRobotNewPose = updateRobotPose.plus(robotOffset);
         
+        boolean inTandem = Math.abs(timeOfLastLocalUpdate - Timer.getFPGATimestamp()) < 1;
 
-        if(Constants.IS_MASTER) {
-            updateCurrentRobot(update);
+        if (inTandem) {
+            if(Constants.IS_MASTER) {
+                updateCurrentRobot(update);
+            } else {
+                // updateOtherRobot(new TimestampedVisionUpdate(otherRobotNewPose, update.timestamp, update.stdDev));
+            }
         } else {
-            // updateOtherRobot(new TimestampedVisionUpdate(otherRobotNewPose, update.timestamp, update.stdDev));
+            updateCurrentRobot(update);
         }
         // updateCurrentRobot(update); // TODO: this pose2d and transform2d math is definitely wrong // TODO Confirmed wrong via testing // TODO change so that it maintains the formation estimate
         // updateOtherRobot(new TimestampedVisionUpdate(otherRobotNewPose, update.timestamp, update.stdDev)); // TODO: E is a random constant
@@ -686,6 +696,13 @@ public class PhotonVision extends SubsystemBase {
                 Transform3d cameraToRobot3d = multiTag.estimatedPose.best.plus(cameraPosition.inverse()).inverse();
                 Transform2d cameraToRobot = new Transform2d(cameraToRobot3d.getTranslation().toTranslation2d(), cameraToRobot3d.getRotation().toRotation2d());
                 double stdDev = getStdDev(cameraToRobot3d, multiTag.estimatedPose.ambiguity);
+
+                if(cameraToRobot.getTranslation() == null || cameraToRobot.getRotation() == null || cameraToRobot.getRotation().getSin() == Double.NaN || cameraToRobot.getRotation().getCos() == Double.NaN) {
+                    DataLogManager.log("[PhotonVision] ERROR: " + camName.toString() + " single-tag pose update returned null values");
+                    return Optional.empty();
+                }
+
+                
                 return Optional.of(new Tuple<Transform2d, Double>(cameraToRobot, stdDev));
             }
             //else

@@ -273,18 +273,18 @@ public class Swerve extends SubsystemBase {
 	 */
 
 	public void addVisionMeasurement(Pose2d visionPose, double timestamp, double stdDev) {
-		// if(DriverStation.isDisabled()) {
-			//fully sync pose estimator to vision on disable
-			// poseEstimator.addVisionMeasurement(visionPose,
-			// 		timestamp,
-			// 		VecBuilder.fill(0.01, 0.01, 0.01));
-		// } else {
+		if(DriverStation.isDisabled()) {
+			// fully sync pose estimator to vision on disable
+			poseEstimator.addVisionMeasurement(visionPose,
+					timestamp,
+					VecBuilder.fill(0.01, 0.01, 0.01));
+		} else {
 			// add some bias to odo on enable
 			poseEstimator.addVisionMeasurement(visionPose,
 					timestamp,
 					// decreases vision confidence with distance+ambiguity
 					VecBuilder.fill(stdDev, stdDev, stdDev));
-		// }
+		}
 
 		VisionPosePublisher.set(visionPose);
 	}

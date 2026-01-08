@@ -99,6 +99,7 @@ public class AutoDrive extends Command {
 
     @Override
     public void initialize() {
+        System.out.println("AutoDrive started");
         anglePID.enableContinuousInput(0, Math.PI * 2);
 
         //initialize telemetry
@@ -114,9 +115,14 @@ public class AutoDrive extends Command {
         //calculate the speeds to drive towards the target pose
         double xOut = xPID.calculate(currentPose.getX(), robotTargetPose.getX());
         double yOut = yPID.calculate(currentPose.getY(), robotTargetPose.getY());
-        double rOut = anglePID.calculate(currentPose.getRotation().getRadians(), robotTargetPose.getRotation().getRadians());
+        double rOut = -anglePID.calculate(currentPose.getRotation().getRadians(), robotTargetPose.getRotation().getRadians());
         
         PIDAtTolerance = anglePID.atSetpoint() && xPID.atSetpoint() && yPID.atSetpoint();
+
+        //clamp the outputs to max speeds
+        xOut = MathUtil.clamp(xOut, -RobotConstants.maxAutoDriveSpeedMetersPerSecond, RobotConstants.maxAutoDriveSpeedMetersPerSecond);
+        yOut = MathUtil.clamp(yOut, -RobotConstants.maxAutoDriveSpeedMetersPerSecond, RobotConstants.maxAutoDriveSpeedMetersPerSecond);
+        rOut = MathUtil.clamp(rOut, -RobotConstants.maxAutoDriveAngularSpeedRadiansPerSecond, RobotConstants.maxAutoDriveAngularSpeedRadiansPerSecond);
 
         swerve.setRobotSpeeds(ChassisSpeeds.fromFieldRelativeSpeeds(xOut, yOut, rOut, currentPose.getRotation()));
         
@@ -132,7 +138,10 @@ public class AutoDrive extends Command {
     }
 
     @Override
-    public void end(boolean interrupted) {}
+    public void end(boolean interrupted) {
+        System.out.println("AutoDrive ended");
+        swerve.stop();
+    }
 
     @Override
     public boolean isFinished() {
