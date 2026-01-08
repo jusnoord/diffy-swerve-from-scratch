@@ -209,8 +209,8 @@ public final class Constants {
 		// public static final Transform3d cameraPose = new Transform3d(new Translation3d(0.0, 0, 0),new Rotation3d());
 		//TODO: fix these
 		public static final ArrayList<Integer> RobotTagIDs = new ArrayList<>(Arrays.asList(17, 18, 19, 20));
-		public static final ArrayList<Integer> GlobalTagIDs = new ArrayList<>(Arrays.asList(1));
-		public static final ArrayList<Integer> WingTagIDs = new ArrayList<>(Arrays.asList(2));
+		public static final ArrayList<Integer> GlobalTagIDs = new ArrayList<>(Arrays.asList(1,2));
+		public static final ArrayList<Integer> WingTagIDs = new ArrayList<>(Arrays.asList(3,4,5,6));
 
 		public static final Map<Integer, Transform2d> tagPoses = new HashMap<>() {{
 			//robot-relative tags
@@ -220,10 +220,15 @@ public final class Constants {
 			put(20, new Transform2d(0, 0.116, Rotation2d.fromDegrees(35)));
 
 			//field-relative tags
-			put(1, new Transform2d(0, 0, Rotation2d.fromDegrees(0)));
-
+			put(6, new Transform2d(0, 0, Rotation2d.fromDegrees(0)));
+			put(5, new Transform2d(0, 2.375, Rotation2d.fromDegrees(0)));
+			put(3, new Transform2d(3.315, 3.366, Rotation2d.fromDegrees(-112.5)));
+			put(4, new Transform2d(3.099, -0.660, Rotation2d.fromDegrees(112.5)));
+									// x could be negated here idk but I have high confidence that the axes are not swapped and the y and angles are correct
 			//wing tags
+			put(1, new Transform2d(0, 1.562, Rotation2d.fromDegrees(0)));
 			put(2, new Transform2d(0, 0, Rotation2d.fromDegrees(0)));
+									// axes could be swapped here idk since its upside down
 		}};
 	}
 
