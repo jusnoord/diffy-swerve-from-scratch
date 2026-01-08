@@ -398,6 +398,7 @@ public class PhotonVision extends SubsystemBase {
 
     private synchronized void updateGlobalVision(TimestampedVisionUpdate update, int tagID) {
         TimestampedVisionUpdate globalUpdate = new TimestampedVisionUpdate(getTagPose(tagID).plus(new Transform2d(update.translation, update.rotation)), update.timestamp, update.stdDev);
+        // System.out.println(tagID + " " +  getTagPose(tagID).getX() +  " " +  getTagPose(tagID).getX() +  " " +  getTagPose(tagID).getRotation().getDegrees());
         updateGlobalVision(globalUpdate);
     }
 
@@ -689,7 +690,7 @@ public class PhotonVision extends SubsystemBase {
 
         private Optional<Tuple<Transform2d, Double>> doSingleTagUpdate(PhotonTrackedTarget target) {
             //grabs the target pose, relative to the camera, and compensates for the camera position
-            Transform3d cameraToRobot3d = target.getBestCameraToTarget().plus(cameraPosition.inverse()).inverse();
+            Transform3d cameraToRobot3d = cameraPosition.plus(target.getBestCameraToTarget()).inverse();
             Transform2d cameraToRobot = new Transform2d(cameraToRobot3d.getTranslation().toTranslation2d(), cameraToRobot3d.getRotation().toRotation2d());
             double stdDev = getStdDev(cameraToRobot3d, target.getPoseAmbiguity());
 
