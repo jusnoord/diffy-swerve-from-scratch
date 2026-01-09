@@ -18,7 +18,7 @@ public class Path {
     private Rotation2d rotationalLookAhead;
     private final double defaultSpeed;
     private int currentWaypointIndex = 0;
-    private final double rotationalSpeedCap = 15; // degrees per second
+    private final double rotationalSpeedCap = 10; // degrees per second
     private boolean isPathComplete = false;
 
     public Path(List<Pose2d> waypoints, double defaultSpeed, double lookAhead, Rotation2d rotationalLookAhead) {

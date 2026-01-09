@@ -180,7 +180,7 @@ public final class Constants {
 
 	public static final class PathConstants {
 		public static final double defaultSpeed = 0.1; // m/s
-		public static final double lookAhead = 0.04; // meters
+		public static final double lookAhead = 0.07; // meters
 		public static final Rotation2d rotationalLookAhead = Rotation2d.fromDegrees(4); 
 		public static final List<Pose2d> wayPoints = new ArrayList<Pose2d>()
 		{
@@ -215,11 +215,11 @@ public final class Constants {
 		public static final double tandemPositionTolerance = 0.06; // meters
 
 		//autodrive gains
-		public static final double autoDrivekP = 0.4;
+		public static final double autoDrivekP = 0.5;
 		public static final double autoDrivekI = 0.0;
-		public static final double autoDrivekD = 0.01;
+		public static final double autoDrivekD = 0.05;
 
-		public static final double autoDrivekP_angle = 0.6;
+		public static final double autoDrivekP_angle = 0.9;
 		public static final double autoDrivekI_angle = 0.0;
 		public static final double autoDrivekD_angle = 0.0;
 
@@ -231,8 +231,8 @@ public final class Constants {
 		public static final double tandemTranslation_deadband = 0.008;
 		public static final double tandemAngle_deadband = 0.005;
 
-		public static final double maxAutoDriveSpeedMetersPerSecond = 0.2; // m/s
-		public static final double maxAutoDriveAngularSpeedRadiansPerSecond = 2.0; // rad/s
+		public static final double maxAutoDriveSpeedMetersPerSecond = 0.1; // m/s
+		public static final double maxAutoDriveAngularSpeedRadiansPerSecond = 0.2; // rad/s
 
 
 		//follow path angle gains
@@ -336,7 +336,7 @@ public final class Constants {
 
 		private static final double wheelBase = Units.inchesToMeters(19.75);
 		private static final double trackWidth = Units.inchesToMeters(19.75);
-		public static Transform2d[] offsetPositions = {new Transform2d(new Translation2d(-0.781, 0.0), new Rotation2d()), new Transform2d(new Translation2d(0.781, 0.0), new Rotation2d(Math.PI))}; // default center of rotation of robot
+		public static final Transform2d[] offsetPositions = {new Transform2d(new Translation2d(-0.781, 0.0), new Rotation2d()), new Transform2d(new Translation2d(0.781, 0.0), new Rotation2d(Math.PI))}; // default center of rotation of robot
 		public static Command reset() {
 			return new InstantCommand(() -> resetOffsetPositions());
 		}

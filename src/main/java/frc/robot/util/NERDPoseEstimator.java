@@ -459,11 +459,15 @@ public class NERDPoseEstimator {
 
         m_odometryPoseBuffer.addSample(currentTimeSeconds, odometryEstimate);
 
-        if (m_visionUpdates.isEmpty()) {
-            m_poseEstimate = odometryEstimate;
-        } else {
-            var visionUpdate = m_visionUpdates.get(m_visionUpdates.lastKey());
-            m_poseEstimate = visionUpdate.compensate(odometryEstimate);
+        try {
+            if (m_visionUpdates.isEmpty()) {
+                m_poseEstimate = odometryEstimate;
+            } else {
+                var visionUpdate = m_visionUpdates.get(m_visionUpdates.lastKey());
+                m_poseEstimate = visionUpdate.compensate(odometryEstimate);
+            }
+        } catch (Exception e) {
+            System.out.println("for some fucking reason: " +e);
         }
 
         return getEstimatedPosition();

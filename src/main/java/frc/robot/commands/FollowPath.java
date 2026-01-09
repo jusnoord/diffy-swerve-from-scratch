@@ -60,6 +60,7 @@ public class FollowPath extends Command {
     private final PIDController yPID = new PIDController(kP.getDefault(), kI.getDefault(), kD.getDefault());
 
     private boolean robotAtTarget = false;
+    private boolean PIDAtTolerance = false;
 
     public FollowPath(Swerve swerve, Path path, Pose2d finalPose) {
         this.swerve = swerve;
@@ -75,6 +76,7 @@ public class FollowPath extends Command {
     public void initialize() {
         robotAtTarget = false;
         path.reset();
+        // RobotConfig.reset();
 
         anglePID.enableContinuousInput(0, Math.PI * 2);
         anglePID.setTolerance(0.02);
@@ -112,7 +114,7 @@ public class FollowPath extends Command {
         } else {
             double xVeloc = MathUtil.clamp(xVelocityPIDRobot.calculate(centerFormationPose.getX(), finalPose.getX()), -RobotConstants.maxAutoDriveSpeedMetersPerSecond, RobotConstants.maxAutoDriveSpeedMetersPerSecond);
             double yVeloc = MathUtil.clamp(yVelocityPIDRobot.calculate(centerFormationPose.getY(), finalPose.getY()), -RobotConstants.maxAutoDriveSpeedMetersPerSecond, RobotConstants.maxAutoDriveSpeedMetersPerSecond);
-            double angleVeloc = MathUtil.clamp(angleVelocityPIDRobot.calculate(centerFormationPose.getRotation().getRadians(), finalPose.getRotation().getRadians()), -RobotConstants.maxAutoDriveAngularSpeedRadiansPerSecond, RobotConstants.maxAutoDriveAngularSpeedRadiansPerSecond);
+            double angleVeloc = -MathUtil.clamp(angleVelocityPIDRobot.calculate(centerFormationPose.getRotation().getRadians(), finalPose.getRotation().getRadians()), -RobotConstants.maxAutoDriveAngularSpeedRadiansPerSecond, RobotConstants.maxAutoDriveAngularSpeedRadiansPerSecond);
 
             if(xPID.atSetpoint() && yPID.atSetpoint() && anglePID.atSetpoint()) {
                 robotAtTarget = true;
@@ -160,7 +162,7 @@ public class FollowPath extends Command {
             double yOut = robotSpeeds.getY() + yPID.calculate(currentPose.getY(), robotTargetPose.getY());
             double rOut = robotSpeeds.getRotation().getRadians() - anglePID.calculate(currentPose.getRotation().getRadians(), robotTargetPose.getRotation().getRadians());
             
-            boolean PIDAtTolerance = anglePID.atSetpoint() && xPID.atSetpoint() && yPID.atSetpoint();
+            PIDAtTolerance = anglePID.atSetpoint() && xPID.atSetpoint() && yPID.atSetpoint();
             if (!PIDAtTolerance) {
                 swerve.setRobotSpeeds(ChassisSpeeds.fromFieldRelativeSpeeds(xOut, yOut, rOut, currentPose.getRotation()));
             } else {
@@ -220,6 +222,8 @@ public class FollowPath extends Command {
 
     @Override
     public boolean isFinished() {
-        return robotAtTarget;
+        //if master, finish when at target
+        //if slave, finish when at target and PID at tolerance
+        return Constants.IS_MASTER ? robotAtTarget : PIDAtTolerance && robotAtTarget;
     }
 }
