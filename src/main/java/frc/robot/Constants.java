@@ -178,30 +178,11 @@ public final class Constants {
 	public static final class PathConstants {
 		public static final double defaultSpeed = 0.1; // m/s
 		public static final double lookAhead = 0.1; // meters
+		public static final Rotation2d rotationalLookAhead = Rotation2d.fromDegrees(10); 
 		public static final List<Pose2d> wayPoints = new ArrayList<Pose2d>()
 		{
 			{
 				add(new Pose2d(2.5, 2, Rotation2d.fromDegrees(0))); // start
-
-				add(new Pose2d(2.45, 2, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(2.40, 2, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(2.35, 2, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(2.30, 2, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(2.25, 2, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(2.20, 2, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(2.15, 2, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(2.10, 2, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(2.05, 2, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(2.00, 2, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(1.95, 2, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(1.90, 2, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(1.85, 2, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(1.80, 2, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(1.75, 2, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(1.70, 2, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(1.65, 2, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(1.60, 2, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(1.55, 2, Rotation2d.fromDegrees(0)));
 
 				add(new Pose2d(1.5, 2, Rotation2d.fromDegrees(0))); // end
 			}

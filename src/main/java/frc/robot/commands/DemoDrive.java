@@ -29,7 +29,7 @@ public class DemoDrive extends SequentialCommandGroup {
             new WaitCommand(5), // wait 5 seconds for demo purposes
             new SyncOffsets(swerve).withTimeout(1), // sync offsets TODO: 1 second is random
             // new TandemDrive(swerve, inputGetter::getJoystickVelocity).until(inputGetter::getRightBumper), // tandem drive with other robot manually
-            new FollowPath(swerve, new Path(PathConstants.wayPoints, PathConstants.defaultSpeed, PathConstants.lookAhead)) // follow path back to start
+            new FollowPath(swerve, new Path(PathConstants.wayPoints, PathConstants.defaultSpeed, PathConstants.lookAhead, PathConstants.rotationalLookAhead)) // follow path back to start
         );
     }
 }
