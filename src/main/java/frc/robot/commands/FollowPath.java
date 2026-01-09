@@ -15,6 +15,9 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
+import edu.wpi.first.networktables.BooleanPublisher;
+import edu.wpi.first.networktables.BooleanSubscriber;
+import edu.wpi.first.networktables.BooleanTopic;
 import edu.wpi.first.networktables.DoubleEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructEntry;
@@ -23,6 +26,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.Constants;
 import frc.robot.Robot;
 import frc.robot.Constants.RobotConstants;
+import frc.robot.Constants.RobotType;
 import frc.robot.Constants.DemoConstants;
 import frc.robot.Constants.RobotConfig;
 import frc.robot.subsystems.PhotonVision;
@@ -39,7 +43,8 @@ public class FollowPath extends Command {
 
     private StructEntry<Pose2d> targetPosePublisher;
     private StructSubscriber<Pose2d> masterPoseSubscriber;
-
+    private BooleanSubscriber masterFinishedPathSub;
+    private BooleanPublisher masterFinishedPathPub;
 
 
     //PID values
@@ -67,7 +72,16 @@ public class FollowPath extends Command {
         this.path = path;
         this.finalPose = finalPose;
 
-        masterPoseSubscriber = NetworkTableInstance.getDefault().getTable(Constants.RobotType.master.toString()).getStructTopic("RobotPose", Pose2d.struct).subscribe(new Pose2d());
+        masterPoseSubscriber = NetworkTableInstance.getDefault().getTable(Constants.RobotType.master.toString()).getStructTopic("RobotPose", Pose2d.struct).subscribe(new Pose2d(), Constants.NTPubSub);
+        targetPosePublisher = NetworkTableInstance.getDefault().getTable(Constants.currentRobot.toString()).getStructTopic("targetPose", Pose2d.struct).getEntry(new Pose2d());
+
+        BooleanTopic masterFinishedPath = NetworkTableInstance.getDefault().getTable(RobotType.master.toString()).getBooleanTopic("finished path");
+
+        if(Constants.IS_MASTER) {
+            masterFinishedPathPub = masterFinishedPath.publish(Constants.NTPubSub);
+        } else {
+            masterFinishedPathSub = masterFinishedPath.subscribe(false, Constants.NTPubSub);
+        }
 
         addRequirements(swerve);
     }
@@ -75,6 +89,7 @@ public class FollowPath extends Command {
     @Override
     public void initialize() {
         robotAtTarget = false;
+        PIDAtTolerance = false;
         path.reset();
         // RobotConfig.reset();
 
@@ -88,30 +103,35 @@ public class FollowPath extends Command {
         xVelocityPIDRobot.setTolerance(0.02);
         yVelocityPIDRobot.setTolerance(0.02);
 
-        
-        if(Constants.IS_MASTER) {
-            //reset the initial pose to the robot-system pose
-            // only do this if on the master robot, as slaves are synced to master automatically
-            // Pose2d robotTargetPose = targetPose.plus(new Transform2d(RobotConfig.offsetPositions[Constants.IS_MASTER ? 0 : 1], Rotation2d.kZero));
-            // swerve.resetPose(new Pose2d(5, 8, new Rotation2d()));
-        }
-
-        //initialize telemetry
-        targetPosePublisher = NetworkTableInstance.getDefault().getTable(Constants.currentRobot.toString()).getStructTopic("targetPose", Pose2d.struct).getEntry(new Pose2d());
+        System.out.println("FollowPath started");
     }
 
     @Override
     public void execute() {
+
         Transform2d masterOffset = RobotConfig.offsetPositions[0];
         Transform2d slaveOffset = RobotConfig.offsetPositions[1];
         
         Pose2d masterPose = Constants.IS_MASTER ? swerve.getPose() : masterPoseSubscriber.get();
         Pose2d currentPose = swerve.getPose();
         Pose2d centerFormationPose = masterPose.plus(masterOffset.inverse());
-        Pose2d formationVelocity; 
-        if(!path.isFinished()) {
-            formationVelocity = path.getVelocity(centerFormationPose, anglePIDRobot);
+
+
+        // formation velocity calculation
+        boolean masterFinishedPath; 
+        Pose2d formationVelocity;
+        //if master, check if path is finished locally, else get from master robot
+        if(Constants.IS_MASTER) {
+            masterFinishedPath = path.isFinished();
+            masterFinishedPathPub.accept(path.isFinished());
         } else {
+            masterFinishedPath = masterFinishedPathSub.get();
+        }
+
+        if(!masterFinishedPath) {
+            formationVelocity = path.getVelocity(centerFormationPose, anglePIDRobot); //if path not finished, continue
+        } else {
+            //else, get velocities from PID controllers to drive to final pose
             double xVeloc = MathUtil.clamp(xVelocityPIDRobot.calculate(centerFormationPose.getX(), finalPose.getX()), -RobotConstants.maxAutoDriveSpeedMetersPerSecond, RobotConstants.maxAutoDriveSpeedMetersPerSecond);
             double yVeloc = MathUtil.clamp(yVelocityPIDRobot.calculate(centerFormationPose.getY(), finalPose.getY()), -RobotConstants.maxAutoDriveSpeedMetersPerSecond, RobotConstants.maxAutoDriveSpeedMetersPerSecond);
             double angleVeloc = -MathUtil.clamp(angleVelocityPIDRobot.calculate(centerFormationPose.getRotation().getRadians(), finalPose.getRotation().getRadians()), -RobotConstants.maxAutoDriveAngularSpeedRadiansPerSecond, RobotConstants.maxAutoDriveAngularSpeedRadiansPerSecond);

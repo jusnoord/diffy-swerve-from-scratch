@@ -43,7 +43,7 @@ public class WingPoseEstimator {
 
         //dummy values
         stateStdDevs = VecBuilder.fill(0.1, 0.1, 0.1);
-        measurementStdDevs = VecBuilder.fill(0.01, 0.01, 0.01);
+        measurementStdDevs = VecBuilder.fill(0.02, 0.02, 0.02);
 
         //construct a linear system plant with my guess of what the states, inputs, and outputs are
         plant = new LinearSystem<N3, N3, N3>(A, B, C, D);
