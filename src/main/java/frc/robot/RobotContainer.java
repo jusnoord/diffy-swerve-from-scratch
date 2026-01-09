@@ -72,8 +72,8 @@ public class RobotContainer {
 		// new Trigger(inputGetter::getLeftBumper).whileTrue(new PointAndDrive(swerve, () -> new Translation2d(inputGetter.getRightX(), inputGetter.getRightY()), () -> inputGetter.getRightTriggerAxis()));
 		
 		// new Trigger(inputGetter::getStartButton).whileTrue(new InstantCommand(swerve::resetPods, swerve));
-		Pose2d wingApproximate = Constants.IS_MASTER ? DemoConstants.masterWingApproximate : DemoConstants.slaveWingApproximate;
-		new Trigger(inputGetter::getAButton).onTrue(new AutoDrive(swerve, () -> wingApproximate, true));
+		// Pose2d wingApproximate = Constants.IS_MASTER ? DemoConstants.masterWingApproximate : DemoConstants.slaveWingApproximate;
+		// new Trigger(inputGetter::getAButton).onTrue(new AutoDrive(swerve, () -> wingApproximate, true));
 		new Trigger(inputGetter::getBButton).onTrue(new AutoDrive(swerve, wingPoseEstimator::getEstimatedPose, false));
 		new Trigger(inputGetter::getXButton).onTrue(new SyncOffsets(swerve).withTimeout(1));
 		new Trigger(inputGetter::getLeftBumper).whileTrue(new TandemDrive(swerve, inputGetter::getJoystickVelocity));

@@ -47,7 +47,6 @@ public class InputSender {
 				}
 			}
 		});
-		updateThread.setDaemon(true);
 		updateThread.start();
 	}
 

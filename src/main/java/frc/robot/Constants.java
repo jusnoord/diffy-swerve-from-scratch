@@ -54,7 +54,7 @@ public final class Constants {
 
 	public static RobotType currentRobot = IS_MASTER ? RobotType.master : RobotType.slave;
 
-	public static final PubSubOption[] NTPubSub = {PubSubOption.sendAll(true), PubSubOption.periodic(0.05)};
+	public static final PubSubOption[] NTPubSub = {PubSubOption.sendAll(true), PubSubOption.periodic(0.005)};
 
 	/**
 	 * RobotMap contains hardware mapping and configuration for robot components.
@@ -219,14 +219,14 @@ public final class Constants {
 		public static final double autoDrivekI = 0.0;
 		public static final double autoDrivekD = 0.01;
 
-		public static final double autoDrivekP_angle = 0.3;
+		public static final double autoDrivekP_angle = 0.6;
 		public static final double autoDrivekI_angle = 0.0;
 		public static final double autoDrivekD_angle = 0.0;
 
 		public static final double highAutoDriveAngleTolerance = 0.2; // radians
 		public static final double highAutoDrivePositionTolerance = 0.4; // meters
-		public static final double lowAutoDriveAngleTolerance = 0.06; // radians
-		public static final double lowAutoDrivePositionTolerance = 0.05; // meters
+		public static final double lowAutoDriveAngleTolerance = 0.02; // radians
+		public static final double lowAutoDrivePositionTolerance = 0.03; // meters
 
 		public static final double tandemTranslation_deadband = 0.008;
 		public static final double tandemAngle_deadband = 0.005;
@@ -286,14 +286,13 @@ public final class Constants {
 	}
 
 	public final class DemoConstants {
-		public static final Pose2d masterWingApproximate = new Pose2d(2.7, 1, Rotation2d.fromDegrees(90));
-		public static final Pose2d slaveWingApproximate = new Pose2d(2.7, 2.562, Rotation2d.fromDegrees(-90));
+		public static final Pose2d wingApproximates[] = {new Pose2d(2.7, 1, Rotation2d.fromDegrees(90)), new Pose2d(2.7, 2.562, Rotation2d.fromDegrees(-90))};
 
 		public static final Pose2d stationPosition = new Pose2d(1.33, 2, Rotation2d.fromDegrees(0));
 
 		public static final Transform2d[] wingRelativeFormationOffsets = {
-			new Transform2d(0, 0.781, Rotation2d.fromDegrees(90)), 
-			new Transform2d(0, -0.781, Rotation2d.fromDegrees(-90))
+			new Transform2d(0, -0.781, Rotation2d.fromDegrees(90)), 
+			new Transform2d(0, 0.781, Rotation2d.fromDegrees(-90))
 		};
 		
 	}

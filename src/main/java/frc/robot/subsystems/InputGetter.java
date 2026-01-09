@@ -42,7 +42,6 @@ public class InputGetter {
                 }
             }
         });
-        updateThread.setDaemon(true);
         updateThread.start();
 
     }

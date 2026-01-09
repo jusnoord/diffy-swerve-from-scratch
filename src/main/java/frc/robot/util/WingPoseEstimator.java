@@ -131,9 +131,9 @@ public class WingPoseEstimator {
 
         Pose2d estimatedPose = new Pose2d(x, y, new Rotation2d(theta));
 
-        if(estimatedPose.equals(Pose2d.kZero)) {
-            return Constants.IS_MASTER ? DemoConstants.masterWingApproximate : DemoConstants.slaveWingApproximate;
-        }
+        // if(estimatedPose.equals(Pose2d.kZero)) {
+        //     throw new RuntimeException("WingPoseEstimator: estimated pose is zero!");
+        // }
         
         return estimatedPose;
     }

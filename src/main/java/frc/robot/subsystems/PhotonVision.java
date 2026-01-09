@@ -106,9 +106,6 @@ public class PhotonVision extends SubsystemBase {
         frontCamThread = new CameraThread(CameraType.front.getCameraName(), CameraType.front.getCameraPose());
         backCamThread = new CameraThread(CameraType.back.getCameraName(), CameraType.back.getCameraPose());
         topCamThread = new CameraThread(CameraType.top.getCameraName(), CameraType.top.getCameraPose());
-        frontCamThread.setDaemon(true);
-        backCamThread.setDaemon(true);
-        topCamThread.setDaemon(true);
         frontCamThread.start();
         backCamThread.start();
         topCamThread.start();
@@ -118,7 +115,7 @@ public class PhotonVision extends SubsystemBase {
 
 
         posePublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("pose for localization only", Pose2d.struct).publish(Constants.NTPubSub);
-        // globalDisplacementPublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("global displacement publisher", Pose2d.struct).publish(Constants.NTPubSub);
+        globalDisplacementPublisher = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.toString()).getStructTopic("global displacement publisher", Pose2d.struct).publish(Constants.NTPubSub);
         // poseSubscriber = NetworkTableInstance.getDefault().getTable(Constants.currentRobot.getOpposite().toString()).getStructTopic("RobotPose", Pose2d.struct).subscribe(new Pose2d());
 
         otherPoseSubscriber = NetworkTableInstance.getDefault().getTable("Vision").getSubTable(Constants.currentRobot.getOpposite().toString()).getStructTopic("pose for localization only", Pose2d.struct).subscribe(new Pose2d(), Constants.NTPubSub);
@@ -302,11 +299,11 @@ public class PhotonVision extends SubsystemBase {
      * used for offsets between robots
      * @param update measured displacement between robots along with timestamp of measurement where the difference is master-relative
      */
-    // private synchronized void updateLocalVision(TimestampedVisionUpdate update) {
+    // private synchronized void updateLocalVision(TimestampedVisionUpdate update, RobotType caller) {
     //     if (Constants.IS_MASTER) {
     //         // update pose estimates for both master and slave
     //         double timestamp = update.timestamp;
-    //         double ambiguity = update.ambiguity;
+    //         double stdDev = update.stdDev;
     //         Rotation2d rotation = update.rotation.unaryMinus();
     //         Translation2d translation = update.translation.unaryMinus().rotateBy(rotation);
 
@@ -329,14 +326,25 @@ public class PhotonVision extends SubsystemBase {
 
     //         Pose2d newMasterPose = new Pose2d(newMasterTranslation, newMasterRotation);
     //         Pose2d newSlavePose = new Pose2d(newSlaveTranslation, newSlaveRotation);
-    //         updateCurrentRobot(new TimestampedVisionUpdate(newMasterPose,timestamp,ambiguity));
-    //         updateOtherRobot(new TimestampedVisionUpdate(newSlavePose,timestamp,ambiguity));
+    //         updateCurrentRobot(new TimestampedVisionUpdate(newMasterPose,timestamp,stdDev));
+    //         updateOtherRobot(new TimestampedVisionUpdate(newSlavePose,timestamp,stdDev));
+
+
+    //         // switch (caller) {
+    //         //     case master:
+    //         //         masterVisionUpdatePublisher.set(newMasterPose);
+    //         //         break;
+    //         //     case slave:
+    //         //         slaveVisionUpdatePublisher.set(newSlavePose);
+    //         //         break;
+    //         // }
 
     //         globalDisplacementPublisher.set(new Pose2d(displacementGlobalFrame.times(-0.5).plus(centerOfFormation), new Rotation2d()));
     //     } else {
     //         // send vision offset data to master to process
-    //         // offsetPublisher.set(update);
+    //         offsetPublisher.set(update);
     //     }
+
     // }
 
     /** 
@@ -359,22 +367,22 @@ public class PhotonVision extends SubsystemBase {
             Translation2d translation = update.translation.unaryMinus().rotateBy(rotation);
             
 
-            // Pose2d masterPosition = getMasterPosition(timestamp);
-            Pose2d otherPosition = getOtherRobotPosition(timestamp);
+            Pose2d masterPosition = getOtherRobotPosition(timestamp);
+            // Pose2d slavePosition = getSlavePosition(timestamp);
 
-            // Rotation2d averageHeading = masterPosition.getRotation().plus(slavePosition.getRotation()).times(0.5);
+            // Rotation2d averageHeading = slavePosition.getRotation().plus(slavePosition.getRotation()).times(0.5);
 
             // Rotation2d newMasterRotation = averageHeading.plus(rotation.times(0.5));
             // Rotation2d newSlaveRotation = averageHeading.plus(rotation.times(-0.5));
 
-            // Translation2d centerOfFormation = masterPosition.getTranslation().plus(slavePosition.getTranslation()).times(0.5);
+            // Translation2d centerOfFormation = slavePosition.getTranslation().plus(slavePosition.getTranslation()).times(0.5);
 
             // Translation2d displacementGlobalFrame = translation.rotateBy(newMasterRotation);
 
             // Translation2d newSlaveTranslation = displacementGlobalFrame.times(0.5).plus(centerOfFormation);
             // Translation2d newMasterTranslation = displacementGlobalFrame.times(-0.5).plus(centerOfFormation);
 
-            Pose2d newPose = new Pose2d(otherPosition.getTranslation().plus(translation.rotateBy(otherPosition.getRotation())), otherPosition.getRotation().plus(rotation));
+            Pose2d newPose = new Pose2d(masterPosition.getTranslation().plus(translation.rotateBy(masterPosition.getRotation())), masterPosition.getRotation().plus(rotation));
             // slave-relative transform to center of master tags
 
             // Pose2d newPose = robotToTag.plus(VisionConstants.tagPose);
@@ -426,7 +434,7 @@ public class PhotonVision extends SubsystemBase {
 
         // Transform2d robotOffset = otherRobotPose.minus(currentRobotPose);
 
-        // Pose2d otherRobotNewPose = updateRobotPose.plus(robotOffset);
+        // Pose2d otherRobotNewPose = updateRobotPose.plus(robotOffset).interpolate(otherRobotPose, 0.5);
         
         boolean inTandem = Math.abs(timeOfLastLocalUpdate - Timer.getFPGATimestamp()) < 1;
 
@@ -756,12 +764,12 @@ public class PhotonVision extends SubsystemBase {
         }
 
         private double getStdDev(Transform3d distance, double ambiguity, int tagID) {
-            if(tagID != -1) { //if not multitag
-                if(Math.abs(distance.inverse().getTranslation().toTranslation2d().getAngle().getDegrees()) < 5) {
-                    //flat tag
-                    return 10;
-                }
-            }
+            // if(tagID != -1) { //if not multitag
+            //     if(Math.abs(distance.inverse().getTranslation().toTranslation2d().getAngle().getDegrees()) < 5) {
+            //         //flat tag
+            //         return 10;
+            //     }
+            // }
 
             final double distanceK = 0.03;
             if(ambiguity <= 0.05) {
@@ -770,7 +778,7 @@ public class PhotonVision extends SubsystemBase {
                 return distanceK * distance.getTranslation().getNorm() * 3; //3x the stddev at or before half ambiguity
             } else {
                 //bad vision update, return 10m stddev
-                DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " pose ambiguity is high for tag " + tagID + ": " + ambiguity);
+                // DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " pose ambiguity is high for tag " + tagID + ": " + ambiguity);
                 return 10;
             }
         }

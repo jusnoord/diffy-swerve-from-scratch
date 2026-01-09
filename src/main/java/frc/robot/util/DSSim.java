@@ -74,7 +74,6 @@ public class DSSim {
             socket.close();
         });
 
-        m_thread.setDaemon(true);
         m_thread.start();
     }
 
