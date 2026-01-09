@@ -17,8 +17,9 @@ public class Robot extends TimedRobot {
     private Command m_autonomousCommand;
 
     private final RobotContainer m_robotContainer;
-
+    
     public Robot() {
+        super(0.01);
 		if (Constants.IS_MASTER) {
 			InputInterface.initializeServer();
 		} else {

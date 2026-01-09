@@ -17,9 +17,11 @@ import edu.wpi.first.networktables.DoublePublisher;
 import edu.wpi.first.networktables.DoubleSubscriber;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.PubSubOption;
 import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.networktables.StructSubscriber;
 import edu.wpi.first.wpilibj.XboxController;
+import frc.robot.Constants;
 import frc.robot.Constants.JoystickConstants;
 import frc.robot.Constants.RobotConfig;;
 
@@ -46,12 +48,12 @@ public class InputInterface {
 	}
 
 	private static void publishInputs() {
-		sticksPublisher = table.getDoubleArrayTopic("sticks").publish();
+		sticksPublisher = table.getDoubleArrayTopic("sticks").publish(Constants.NTPubSub);
 
-		buttonsPublisher = table.getBooleanArrayTopic("buttons").publish();
-		isEnabledPublisher = table.getBooleanTopic("isEnabled").publish();
-		timeStampPublisher = table.getDoubleTopic("timeStamp").publish();
-		joystickVelocityPublisher = table.getStructTopic("joystickVelocity", Pose2d.struct).publish();
+		buttonsPublisher = table.getBooleanArrayTopic("buttons").publish(Constants.NTPubSub);
+		isEnabledPublisher = table.getBooleanTopic("isEnabled").publish(Constants.NTPubSub);
+		timeStampPublisher = table.getDoubleTopic("timeStamp").publish(Constants.NTPubSub);
+		joystickVelocityPublisher = table.getStructTopic("joystickVelocity", Pose2d.struct).publish(Constants.NTPubSub);
 		// masterOffsetPublisher = table.getStructTopic("masterOffset", Pose2d.struct).publish();
 	}
 
@@ -94,13 +96,13 @@ public class InputInterface {
 	}
 
 	private static void subscribeInputs() {
-		sticksSubscriber = table.getDoubleArrayTopic("sticks").subscribe(new double[] { 0, 0, 0, 0, 0, 0, 0 });
+		sticksSubscriber = table.getDoubleArrayTopic("sticks").subscribe(new double[] { 0, 0, 0, 0, 0, 0, 0 }, Constants.NTPubSub);
 		buttonsSubscriber = table.getBooleanArrayTopic("buttons")
-				.subscribe(new boolean[] { false, false, false, false, false, false, false, false });
-		isEnabledSubscriber = table.getBooleanTopic("isEnabled").subscribe(false);
-		timeStampSubscriber = table.getDoubleTopic("timeStamp").subscribe(0.0);
-		joystickVelocitySubscriber = table.getStructTopic("joystickVelocity", Pose2d.struct).subscribe(new Pose2d());
-		masterOffsetSubscriber = table.getStructTopic("masterOffset", Pose2d.struct).subscribe(new Pose2d());
+				.subscribe(new boolean[] { false, false, false, false, false, false, false, false }, Constants.NTPubSub);
+		isEnabledSubscriber = table.getBooleanTopic("isEnabled").subscribe(false, Constants.NTPubSub);
+		timeStampSubscriber = table.getDoubleTopic("timeStamp").subscribe(0.0, Constants.NTPubSub);
+		joystickVelocitySubscriber = table.getStructTopic("joystickVelocity", Pose2d.struct).subscribe(new Pose2d(), Constants.NTPubSub);
+		masterOffsetSubscriber = table.getStructTopic("masterOffset", Pose2d.struct).subscribe(new Pose2d(), Constants.NTPubSub);
 	}
 
 	public static Inputs grabInputs() {

@@ -21,6 +21,7 @@ import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
+import edu.wpi.first.math.filter.LinearFilter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
@@ -62,6 +63,9 @@ public class Swerve extends SubsystemBase {
 
 	private final NERDPoseEstimator poseEstimator;
 	private final SwerveDriveKinematics drivetrainKinematics;
+	private final LinearFilter xUpdateFilter = LinearFilter.movingAverage(5);
+	private final LinearFilter yUpdateFilter = LinearFilter.movingAverage(5);
+	private final LinearFilter thetaUpdateFilter = LinearFilter.movingAverage(5);
 
 	public double targetAngle = 0;
 
@@ -107,7 +111,7 @@ public class Swerve extends SubsystemBase {
 
 		SMSPublisher = NetworkTableInstance.getDefault().getTable(tab).getStructArrayTopic("ModuleStates", SwerveModuleState.struct)
 				.publish();
-		PosePublisher = NetworkTableInstance.getDefault().getTable(tab).getStructTopic("RobotPose", Pose2d.struct).publish();
+		PosePublisher = NetworkTableInstance.getDefault().getTable(tab).getStructTopic("RobotPose", Pose2d.struct).publish(Constants.NTPubSub);
 		VisionPosePublisher = NetworkTableInstance.getDefault().getTable(tab).getStructTopic("VisionPose", Pose2d.struct).publish();
 		ChassisSpeedsPublisher = NetworkTableInstance.getDefault().getTable(tab).getStructTopic("ChassisSpeeds", ChassisSpeeds.struct)
 				.publish();
@@ -266,6 +270,22 @@ public class Swerve extends SubsystemBase {
 		return pods;
 	}
 
+	private boolean calculateMovingAverage(Pose2d visionPose) {
+		final double maximumChangeTranslation = 0.05; // meters
+		final double maximumChangeRotation = Units.degreesToRadians(5); // take a guess
+
+		double x = visionPose.getX();
+		double y = visionPose.getY();
+		double theta = visionPose.getRotation().getRadians();
+
+		double xFilter = xUpdateFilter.calculate(visionPose.getX());
+		double yFilter = yUpdateFilter.calculate(visionPose.getY());
+		double thetaFilter = thetaUpdateFilter.calculate(visionPose.getRotation().getRadians());
+
+		return Math.abs(x - xFilter) < maximumChangeTranslation &&
+			   Math.abs(y - yFilter) < maximumChangeTranslation &&
+			   Math.abs(theta - thetaFilter) < maximumChangeRotation;
+	}
 
 	/**
 	 * accepts a vision measurement for pose estimation
@@ -275,6 +295,15 @@ public class Swerve extends SubsystemBase {
 	 */
 
 	public void addVisionMeasurement(Pose2d visionPose, double timestamp, double stdDev) {
+		VisionPosePublisher.set(visionPose);
+
+
+		if(!calculateMovingAverage(visionPose)) {
+			// don't add vision measurement if it's too far off from the moving average
+			return;
+		}
+		
+
 		if(DriverStation.isDisabled()) {
 			// fully sync pose estimator to vision on disable
 			poseEstimator.addVisionMeasurement(visionPose,
@@ -288,7 +317,6 @@ public class Swerve extends SubsystemBase {
 					VecBuilder.fill(stdDev, stdDev, stdDev));
 		}
 
-		VisionPosePublisher.set(visionPose);
 	}
 
 	

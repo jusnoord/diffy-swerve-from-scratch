@@ -24,6 +24,7 @@ import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.networktables.PubSubOption;
 import edu.wpi.first.units.measure.Mass;
 import edu.wpi.first.units.measure.MomentOfInertia;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -36,7 +37,7 @@ import frc.robot.Constants.RobotMap.PodConfig;
  * Organized into nested classes for logical grouping.
  */
 public final class Constants {
-	public static final boolean tuningMode = false; // if true, the robot will use the dashboard to get values for PIDs
+	public static final boolean tuningMode = true; // if true, the robot will use the dashboard to get values for PIDs
 
     //grab the master/slave from a file on the robot. This will determine whether it's running the shuffleboard server.
     // public static final Path MASTER_PATH = Paths.get("/home/lvuser/master");
@@ -52,6 +53,8 @@ public final class Constants {
 	} 
 
 	public static RobotType currentRobot = IS_MASTER ? RobotType.master : RobotType.slave;
+
+	public static final PubSubOption[] NTPubSub = {PubSubOption.sendAll(true), PubSubOption.periodic(0.05)};
 
 	/**
 	 * RobotMap contains hardware mapping and configuration for robot components.
@@ -177,11 +180,12 @@ public final class Constants {
 
 	public static final class PathConstants {
 		public static final double defaultSpeed = 0.1; // m/s
-		public static final double lookAhead = 0.1; // meters
-		public static final Rotation2d rotationalLookAhead = Rotation2d.fromDegrees(10); 
+		public static final double lookAhead = 0.04; // meters
+		public static final Rotation2d rotationalLookAhead = Rotation2d.fromDegrees(4); 
 		public static final List<Pose2d> wayPoints = new ArrayList<Pose2d>()
 		{
 			{
+				// add(new Pose2d(2.5, 2.5, Rotation2d.fromDegrees(90))); // start
 				add(new Pose2d(2.5, 2, Rotation2d.fromDegrees(0))); // start
 
 				add(new Pose2d(1.5, 2, Rotation2d.fromDegrees(0))); // end
@@ -199,7 +203,6 @@ public final class Constants {
 		public static final double motorMaxOutput = 1.0; // max output of the motors
 
 		//PID gains for tandem drive controller
-		// these double as the "fast" gain schedule for autodrive
 		public static final double tandemkP = 0.3;
 		public static final double tandemkI = 0.0;
 		public static final double tandemkD = 0.0;
@@ -212,7 +215,7 @@ public final class Constants {
 		public static final double tandemPositionTolerance = 0.06; // meters
 
 		//autodrive gains
-	public static final double autoDrivekP = 0.4;
+		public static final double autoDrivekP = 0.4;
 		public static final double autoDrivekI = 0.0;
 		public static final double autoDrivekD = 0.01;
 
@@ -220,8 +223,8 @@ public final class Constants {
 		public static final double autoDrivekI_angle = 0.0;
 		public static final double autoDrivekD_angle = 0.0;
 
-		public static final double highAutoDriveAngleTolerance = 0.1; // radians
-		public static final double highAutoDrivePositionTolerance = 0.3; // meters
+		public static final double highAutoDriveAngleTolerance = 0.2; // radians
+		public static final double highAutoDrivePositionTolerance = 0.4; // meters
 		public static final double lowAutoDriveAngleTolerance = 0.06; // radians
 		public static final double lowAutoDrivePositionTolerance = 0.05; // meters
 
@@ -231,6 +234,20 @@ public final class Constants {
 		public static final double maxAutoDriveSpeedMetersPerSecond = 0.2; // m/s
 		public static final double maxAutoDriveAngularSpeedRadiansPerSecond = 2.0; // rad/s
 
+
+		//follow path angle gains
+		public static final double pathkP_angle = 0.9;
+		public static final double pathkI_angle = 0.0;
+		public static final double pathkD_angle = 0.0;
+
+		//velocity PID gains
+		public static final double velocitykP = 0.4;
+		public static final double velocitykI = 0.0;
+		public static final double velocitykD = 0.0;
+
+		public static final double velocitykP_angle = 0.4;
+		public static final double velocitykI_angle = 0.0;
+		public static final double velocitykD_angle = 0.0;
 	}
 
 
@@ -272,7 +289,7 @@ public final class Constants {
 		public static final Pose2d masterWingApproximate = new Pose2d(2.7, 1, Rotation2d.fromDegrees(90));
 		public static final Pose2d slaveWingApproximate = new Pose2d(2.7, 2.562, Rotation2d.fromDegrees(-90));
 
-		public static final Pose2d stationPosition = new Pose2d(0.5, 0.5, Rotation2d.fromDegrees(0));
+		public static final Pose2d stationPosition = new Pose2d(1.33, 2, Rotation2d.fromDegrees(0));
 
 		public static final Transform2d[] wingRelativeFormationOffsets = {
 			new Transform2d(0, 0.781, Rotation2d.fromDegrees(90)), 

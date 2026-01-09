@@ -23,6 +23,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.Constants;
 import frc.robot.Robot;
 import frc.robot.Constants.RobotConstants;
+import frc.robot.Constants.DemoConstants;
 import frc.robot.Constants.RobotConfig;
 import frc.robot.subsystems.PhotonVision;
 import frc.robot.subsystems.Swerve;
@@ -34,6 +35,7 @@ public class FollowPath extends Command {
     private final Swerve swerve;
 
     private Path path;
+    private final Pose2d finalPose;
 
     private StructEntry<Pose2d> targetPosePublisher;
     private StructSubscriber<Pose2d> masterPoseSubscriber;
@@ -48,15 +50,22 @@ public class FollowPath extends Command {
     private TunableNumber kI_angle = new TunableNumber("tandem kI_angle", RobotConstants.tandemkI_angle);
     private TunableNumber kD_angle = new TunableNumber("tandem kD_angle", RobotConstants.tandemkD_angle);
 
-    private final PIDController anglePIDRobot = new PIDController(kP_angle.getDefault(), kI_angle.getDefault(), kD_angle.getDefault());
+    private final PIDController anglePIDRobot = new PIDController(RobotConstants.pathkP_angle, RobotConstants.pathkI_angle, RobotConstants.pathkD_angle);
+    private final PIDController xVelocityPIDRobot = new PIDController(RobotConstants.velocitykP, RobotConstants.velocitykI, RobotConstants.velocitykD);
+    private final PIDController yVelocityPIDRobot = new PIDController(RobotConstants.velocitykP, RobotConstants.velocitykI, RobotConstants.velocitykD);
+    private final PIDController angleVelocityPIDRobot = new PIDController(RobotConstants.velocitykP_angle, RobotConstants.velocitykI_angle, RobotConstants.velocitykD_angle);
 
     private final PIDController anglePID = new PIDController(kP_angle.getDefault(), kI_angle.getDefault(), kD_angle.getDefault());
     private final PIDController xPID = new PIDController(kP.getDefault(), kI.getDefault(), kD.getDefault());
     private final PIDController yPID = new PIDController(kP.getDefault(), kI.getDefault(), kD.getDefault());
 
-    public FollowPath(Swerve swerve, Path path) {
+    private boolean robotAtTarget = false;
+
+    public FollowPath(Swerve swerve, Path path, Pose2d finalPose) {
         this.swerve = swerve;
         this.path = path;
+        this.finalPose = finalPose;
+
         masterPoseSubscriber = NetworkTableInstance.getDefault().getTable(Constants.RobotType.master.toString()).getStructTopic("RobotPose", Pose2d.struct).subscribe(new Pose2d());
 
         addRequirements(swerve);
@@ -64,10 +73,18 @@ public class FollowPath extends Command {
 
     @Override
     public void initialize() {
+        robotAtTarget = false;
+        path.reset();
+
         anglePID.enableContinuousInput(0, Math.PI * 2);
         anglePID.setTolerance(0.02);
         xPID.setTolerance(0.02);
         yPID.setTolerance(0.02);
+
+        angleVelocityPIDRobot.enableContinuousInput(0, Math.PI * 2);
+        angleVelocityPIDRobot.setTolerance(0.02);
+        xVelocityPIDRobot.setTolerance(0.02);
+        yVelocityPIDRobot.setTolerance(0.02);
 
         
         if(Constants.IS_MASTER) {
@@ -89,7 +106,23 @@ public class FollowPath extends Command {
         Pose2d masterPose = Constants.IS_MASTER ? swerve.getPose() : masterPoseSubscriber.get();
         Pose2d currentPose = swerve.getPose();
         Pose2d centerFormationPose = masterPose.plus(masterOffset.inverse());
-        Pose2d formationVelocity = path.getVelocity(centerFormationPose, anglePIDRobot); 
+        Pose2d formationVelocity; 
+        if(!path.isFinished()) {
+            formationVelocity = path.getVelocity(centerFormationPose, anglePIDRobot);
+        } else {
+            double xVeloc = MathUtil.clamp(xVelocityPIDRobot.calculate(centerFormationPose.getX(), finalPose.getX()), -RobotConstants.maxAutoDriveSpeedMetersPerSecond, RobotConstants.maxAutoDriveSpeedMetersPerSecond);
+            double yVeloc = MathUtil.clamp(yVelocityPIDRobot.calculate(centerFormationPose.getY(), finalPose.getY()), -RobotConstants.maxAutoDriveSpeedMetersPerSecond, RobotConstants.maxAutoDriveSpeedMetersPerSecond);
+            double angleVeloc = MathUtil.clamp(angleVelocityPIDRobot.calculate(centerFormationPose.getRotation().getRadians(), finalPose.getRotation().getRadians()), -RobotConstants.maxAutoDriveAngularSpeedRadiansPerSecond, RobotConstants.maxAutoDriveAngularSpeedRadiansPerSecond);
+
+            if(xPID.atSetpoint() && yPID.atSetpoint() && anglePID.atSetpoint()) {
+                robotAtTarget = true;
+                formationVelocity = new Pose2d();
+            } else {
+                formationVelocity = new Pose2d(xVeloc, yVeloc, new Rotation2d(angleVeloc));
+            }
+
+            System.out.println("Formation Velocity: " + formationVelocity);
+        }
 
         Rotation2d rotationalSpeed = formationVelocity.getRotation();
         Translation2d translationalVelocity = formationVelocity.getTranslation(); 
@@ -182,10 +215,11 @@ public class FollowPath extends Command {
     @Override
     public void end(boolean interrupted) {
         swerve.stop();
+        System.out.println("FollowPath ended");
     }
 
     @Override
     public boolean isFinished() {
-        return path.isFinished();
+        return robotAtTarget;
     }
 }
