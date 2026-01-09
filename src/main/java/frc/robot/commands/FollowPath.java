@@ -180,10 +180,12 @@ public class FollowPath extends Command {
     // }
 
     @Override
-    public void end(boolean interrupted) {}
+    public void end(boolean interrupted) {
+        swerve.stop();
+    }
 
     @Override
     public boolean isFinished() {
-        return false;
+        return path.isFinished();
     }
 }

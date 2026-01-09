@@ -50,6 +50,9 @@ public class TandemDrive extends Command {
     private TunableNumber kI_angle = new TunableNumber("tandem kI_angle", RobotConstants.tandemkI_angle);
     private TunableNumber kD_angle = new TunableNumber("tandem kD_angle", RobotConstants.tandemkD_angle);
 
+    private TunableNumber tolerance = new TunableNumber("tandem tolerance", RobotConstants.tandemPositionTolerance);
+    private TunableNumber angleTolerance = new TunableNumber("tandem angle tolerance", RobotConstants.tandemAngleTolerance);
+
 
     private final PIDController anglePID = new PIDController(kP_angle.getDefault(), kI_angle.getDefault(), kD_angle.getDefault());
     private final PIDController xPID = new PIDController(kP.getDefault(), kI.getDefault(), kD.getDefault());
@@ -66,17 +69,9 @@ public class TandemDrive extends Command {
     @Override
     public void initialize() {
         anglePID.enableContinuousInput(0, Math.PI * 2);
-        anglePID.setTolerance(0.02);
-        xPID.setTolerance(0.02);
-        yPID.setTolerance(0.02);
-
-        
-        if(Constants.IS_MASTER) {
-            //reset the initial pose to the robot-system pose
-            // only do this if on the master robot, as slaves are synced to master automatically
-            // Pose2d robotTargetPose = targetPose.plus(new Transform2d(RobotConfig.offsetPositions[Constants.IS_MASTER ? 0 : 1], Rotation2d.kZero));
-            // swerve.resetPose(new Pose2d(5, 8, new Rotation2d()));
-        }
+        anglePID.setTolerance(angleTolerance.getDefault());
+        xPID.setTolerance(tolerance.getDefault());
+        yPID.setTolerance(tolerance.getDefault());
 
         //initialize telemetry
         targetPosePublisher = NetworkTableInstance.getDefault().getTable(Constants.currentRobot.toString()).getStructTopic("targetPose", Pose2d.struct).getEntry(new Pose2d());
@@ -137,10 +132,14 @@ public class TandemDrive extends Command {
 
             
             // update the PID values from the tunable numbers
-            if(Constants.tuningMode) {
+            if(true) {
                 anglePID.setPID(kP_angle.doubleValue(), kI_angle.doubleValue(), kD_angle.doubleValue());
                 xPID.setPID(kP.doubleValue(), kI.doubleValue(), kD.doubleValue());
                 yPID.setPID(kP.doubleValue(), kI.doubleValue(), kD.doubleValue());
+
+                anglePID.setTolerance(angleTolerance.doubleValue());
+                xPID.setTolerance(tolerance.doubleValue());
+                yPID.setTolerance(tolerance.doubleValue());
             }
             robotSpeedPublisher.accept(new Pose2d(new Translation2d(), rotationalCompensationDirection));
 
@@ -150,7 +149,9 @@ public class TandemDrive extends Command {
     }
 
     @Override
-    public void end(boolean interrupted) {}
+    public void end(boolean interrupted) {
+        swerve.stop();
+    }
 
     @Override
     public boolean isFinished() {

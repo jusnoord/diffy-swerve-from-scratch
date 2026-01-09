@@ -433,6 +433,7 @@ public class PhotonVision extends SubsystemBase {
                 updateCurrentRobot(update);
             } else {
                 // updateOtherRobot(new TimestampedVisionUpdate(otherRobotNewPose, update.timestamp, update.stdDev));
+                System.out.println("[PhotonVision]: Skipping global vision update on slave");
             }
         } else {
             updateCurrentRobot(update);
@@ -533,7 +534,7 @@ public class PhotonVision extends SubsystemBase {
                     //fundamentally, this loop updates the pose and distance for each result. It also logs the data to shuffleboard
                     //this is done in a thread-safe manner, as global variables are only updated at the end of the loop (no race conditions)
                     for (PhotonPipelineResult result : results) {
-                        drivetrain.updateOdo();
+                        // drivetrain.updateOdo();
 
                         timestamp = result.getTimestampSeconds();
 
@@ -549,6 +550,8 @@ public class PhotonVision extends SubsystemBase {
                             Transform2d robotToRobot = convertToRobotToRobot(robotToTag);
                             updateLocalVision(new TimestampedVisionUpdate(robotToRobot, timestamp, ambiguity), RobotType.slave); // TODO: trigger based on offsetSubscriber
                         }
+
+                        List<Tuple<TimestampedVisionUpdate, Integer>> globalTagList = new ArrayList<>();
 
 
                         for(PhotonTrackedTarget target : result.getTargets()) {
@@ -574,14 +577,15 @@ public class PhotonVision extends SubsystemBase {
                                     }
                                 }
 
-                                } else if(VisionConstants.GlobalTagIDs.contains(target.getFiducialId())) {
+                            } else if(VisionConstants.GlobalTagIDs.contains(target.getFiducialId())) {
                                 // only single-tag for station tags
                                 var singleTagUpdate = doSingleTagUpdate(target);
                                 if (singleTagUpdate.isPresent()) {
                                     var tuple = singleTagUpdate.get();
                                     robotToTag = tuple.k;
                                     ambiguity = tuple.v;
-                                    updateGlobalVision(new TimestampedVisionUpdate(robotToTag, timestamp, ambiguity), target.getFiducialId()); // TODO: specify which tag or something cuz we have insufficient information right now                               
+                                    globalTagList.add(new Tuple(new TimestampedVisionUpdate(robotToTag, timestamp, ambiguity), target.getFiducialId()));
+                                    // updateGlobalVision(new TimestampedVisionUpdate(robotToTag, timestamp, ambiguity), target.getFiducialId()); // TODO: specify which tag or something cuz we have insufficient information right now                               
                                 } else {
                                     //single-tag method failed
                                     DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " single-tag pose update failed for station tag");
@@ -614,6 +618,13 @@ public class PhotonVision extends SubsystemBase {
 
 
                             camPosePublisher.set(Pose2d.kZero.plus(robotToTag)); //TODO: make more pose publishers
+                        }
+
+
+                        if(globalTagList.size() > 0) {
+                            //pick the global tag with the lowest distance
+                            Tuple<TimestampedVisionUpdate, Integer> bestGlobalTag = globalTagList.stream().min((a, b) -> Double.compare(a.k.stdDev, b.k.stdDev)).get();
+                            updateGlobalVision(bestGlobalTag.k, bestGlobalTag.v);
                         }
 
                         //telemetry
@@ -695,7 +706,7 @@ public class PhotonVision extends SubsystemBase {
                 // Use getCameraToRobot() to get the transform from camera to robot
                 Transform3d cameraToRobot3d = multiTag.estimatedPose.best.plus(cameraPosition.inverse()).inverse();
                 Transform2d cameraToRobot = new Transform2d(cameraToRobot3d.getTranslation().toTranslation2d(), cameraToRobot3d.getRotation().toRotation2d());
-                double stdDev = getStdDev(cameraToRobot3d, multiTag.estimatedPose.ambiguity);
+                double stdDev = getStdDev(cameraToRobot3d, multiTag.estimatedPose.ambiguity, -1);
 
                 if(cameraToRobot.getTranslation() == null || cameraToRobot.getRotation() == null || cameraToRobot.getRotation().getSin() == Double.NaN || cameraToRobot.getRotation().getCos() == Double.NaN) {
                     DataLogManager.log("[PhotonVision] ERROR: " + camName.toString() + " single-tag pose update returned null values");
@@ -714,9 +725,9 @@ public class PhotonVision extends SubsystemBase {
             //grabs the target pose, relative to the camera, and compensates for the camera position
             Transform3d cameraToRobot3d = cameraPosition.plus(target.getBestCameraToTarget());
             Transform2d cameraToRobot = new Transform2d(cameraToRobot3d.getTranslation().toTranslation2d(), cameraToRobot3d.getRotation().toRotation2d()).inverse();
-            double stdDev = getStdDev(cameraToRobot3d, target.getPoseAmbiguity()) + 0.5;
+            double stdDev = getStdDev(cameraToRobot3d, target.getPoseAmbiguity(), target.getFiducialId()) + 0.5;
 
-            if(cameraToRobot.getTranslation() == null || cameraToRobot.getRotation() == null || cameraToRobot.getRotation().getSin() == Double.NaN || cameraToRobot.getRotation().getCos() == Double.NaN) {
+            if(cameraToRobot.getTranslation() == null || cameraToRobot.getRotation() == null || cameraToRobot.getRotation().getSin() == 0 || cameraToRobot.getRotation().getCos() == 0) {
                 DataLogManager.log("[PhotonVision] ERROR: " + camName.toString() + " single-tag pose update returned null values");
                 return Optional.empty();
             }
@@ -731,9 +742,9 @@ public class PhotonVision extends SubsystemBase {
             //grabs the target pose, relative to the camera, and compensates for the camera position
             Transform3d cameraToRobot3d = cameraPosition.plus(target.getBestCameraToTarget());
             Transform2d cameraToRobot = new Transform2d(cameraToRobot3d.getTranslation().toTranslation2d(), new Rotation2d(target.getBestCameraToTarget().getRotation().getMeasureX().negate())).inverse();
-            double stdDev = getStdDev(cameraToRobot3d, target.getPoseAmbiguity()) + 0.5;
+            double stdDev = getStdDev(cameraToRobot3d, target.getPoseAmbiguity(), target.getFiducialId()) + 0.5;
 
-            if(cameraToRobot.getTranslation() == null || cameraToRobot.getRotation() == null || cameraToRobot.getRotation().getSin() == Double.NaN || cameraToRobot.getRotation().getCos() == Double.NaN) {
+            if(cameraToRobot.getTranslation() == null || cameraToRobot.getRotation() == null || cameraToRobot.getRotation().getSin() == 0 || cameraToRobot.getRotation().getCos() == 0) {
                 DataLogManager.log("[PhotonVision] ERROR: " + camName.toString() + " single-tag pose update returned null values");
                 return Optional.empty();
             }
@@ -742,15 +753,22 @@ public class PhotonVision extends SubsystemBase {
             return Optional.of(new Tuple<Transform2d, Double>(cameraToRobot, stdDev));
         }
 
-        private double getStdDev(Transform3d distance, double ambiguity) {
-            final double distanceK = 0.03; //constant for distance effect on stddev, 1m should give 3cm stddev
+        private double getStdDev(Transform3d distance, double ambiguity, int tagID) {
+            if(tagID != -1) { //if not multitag
+                if(Math.abs(distance.inverse().getTranslation().toTranslation2d().getAngle().getDegrees()) < 5) {
+                    //flat tag
+                    return 10;
+                }
+            }
+
+            final double distanceK = 0.03;
             if(ambiguity <= 0.05) {
                 return distanceK * distance.getTranslation().getNorm();
-            } else if (ambiguity < 0.5) {
+            } else if (ambiguity < 0.2) {
                 return distanceK * distance.getTranslation().getNorm() * 3; //3x the stddev at or before half ambiguity
             } else {
                 //bad vision update, return 10m stddev
-                DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " pose ambiguity is high");
+                DataLogManager.log("[PhotonVision] WARNING: " + camName.toString() + " pose ambiguity is high for tag " + tagID + ": " + ambiguity);
                 return 10;
             }
         }

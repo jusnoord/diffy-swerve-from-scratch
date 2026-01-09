@@ -68,10 +68,10 @@ public class IndependentDrive extends Command {
   public void execute() {
     Pose2d velocity = Constants.IS_MASTER ? leftJoystickVelocity.get() : rightJoystickVelocity.get();
     swerve.setRobotSpeeds(new ChassisSpeeds(velocity.getX(), velocity.getY(), velocity.getRotation().getRadians()));
-    System.out.println("IndependentDrive executing");
+    // System.out.println("IndependentDrive executing");
     
     if (!Constants.IS_MASTER) {
-      System.out.println("IndependentDrive slave executing");
+      // System.out.println("IndependentDrive slave executing");
       Pose2d masterPose = masterPoseSubscriber.get();
       Pose2d currentPose = swerve.getPose();
       Pose2d formationCenterPose = new Pose2d(masterPose.getTranslation().plus(currentPose.getTranslation()).times(0.5), masterPose.getRotation());
@@ -88,8 +88,8 @@ public class IndependentDrive extends Command {
       masterCurrentPosePublisher.accept(masterPose);
       slaveCurrentPosePublisher.accept(currentPose);
     } else {
-      System.out.println("rob 1 " + RobotConfig.offsetPositions[1].getX() + "," + RobotConfig.offsetPositions[1].getY());
-      System.out.println("rob 2 " + RobotConfig.offsetPositions[1].getX() + "," + RobotConfig.offsetPositions[1].getY());
+      // System.out.println("rob 1 " + RobotConfig.offsetPositions[1].getX() + "," + RobotConfig.offsetPositions[1].getY());
+      // System.out.println("rob 2 " + RobotConfig.offsetPositions[1].getX() + "," + RobotConfig.offsetPositions[1].getY());
       RobotConfig.offsetPositions[1] = slaveOffsetSubscriber.get();
       RobotConfig.offsetPositions[0] = masterOffsetSubscriber.get();
       masterOffsetPublisher.accept(RobotConfig.offsetPositions[0]);// telemetry only
@@ -101,6 +101,8 @@ public class IndependentDrive extends Command {
 
   @Override
   public void end(boolean interrupted) {
+    swerve.stop();
+
     System.out.println("IndependentDrive ended");
   }
 

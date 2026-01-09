@@ -60,10 +60,7 @@ public class SyncOffsets extends Command {
 
   @Override
   public void execute() {
-    System.out.println("SyncOffsets executing");
-    
     if (!Constants.IS_MASTER) {
-      System.out.println("SyncOffsets slave executing");
       Pose2d masterPose = masterPoseSubscriber.get();
       Pose2d currentPose = swerve.getPose();
       Pose2d formationCenterPose = new Pose2d(masterPose.getTranslation().plus(currentPose.getTranslation()).times(0.5), masterPose.getRotation());
@@ -80,8 +77,6 @@ public class SyncOffsets extends Command {
       masterCurrentPosePublisher.accept(masterPose);
       slaveCurrentPosePublisher.accept(currentPose);
     } else {
-      System.out.println("rob 1 " + RobotConfig.offsetPositions[1].getX() + "," + RobotConfig.offsetPositions[1].getY());
-      System.out.println("rob 2 " + RobotConfig.offsetPositions[1].getX() + "," + RobotConfig.offsetPositions[1].getY());
       RobotConfig.offsetPositions[1] = slaveOffsetSubscriber.get();
       RobotConfig.offsetPositions[0] = masterOffsetSubscriber.get();
       masterOffsetPublisher.accept(RobotConfig.offsetPositions[0]);// telemetry only

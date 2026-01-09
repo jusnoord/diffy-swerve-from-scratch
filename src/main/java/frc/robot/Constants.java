@@ -181,29 +181,29 @@ public final class Constants {
 		public static final List<Pose2d> wayPoints = new ArrayList<Pose2d>()
 		{
 			{
-				add(new Pose2d(1.5, 0.5, Rotation2d.fromDegrees(0))); // start
+				add(new Pose2d(2.5, 2, Rotation2d.fromDegrees(0))); // start
 
-				add(new Pose2d(1.45, 0.5, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(1.40, 0.5, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(1.35, 0.5, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(1.30, 0.5, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(1.25, 0.5, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(1.20, 0.5, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(1.15, 0.5, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(1.10, 0.5, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(1.05, 0.5, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(1.00, 0.5, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(0.95, 0.5, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(0.90, 0.5, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(0.85, 0.5, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(0.80, 0.5, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(0.75, 0.5, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(0.70, 0.5, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(0.65, 0.5, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(0.60, 0.5, Rotation2d.fromDegrees(0)));
-				add(new Pose2d(0.55, 0.5, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(2.45, 2, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(2.40, 2, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(2.35, 2, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(2.30, 2, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(2.25, 2, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(2.20, 2, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(2.15, 2, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(2.10, 2, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(2.05, 2, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(2.00, 2, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(1.95, 2, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(1.90, 2, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(1.85, 2, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(1.80, 2, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(1.75, 2, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(1.70, 2, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(1.65, 2, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(1.60, 2, Rotation2d.fromDegrees(0)));
+				add(new Pose2d(1.55, 2, Rotation2d.fromDegrees(0)));
 
-				add(new Pose2d(0.5, 0.5, Rotation2d.fromDegrees(0))); // end
+				add(new Pose2d(1.5, 2, Rotation2d.fromDegrees(0))); // end
 			}
 		};
 	}
@@ -228,24 +228,26 @@ public final class Constants {
 		public static final double tandemkD_angle = 0.0;
 
 		public static final double tandemAngleTolerance = 0.06; // radians
-		public static final double tandemPositionTolerance = 0.05; // meters
+		public static final double tandemPositionTolerance = 0.06; // meters
 
-		//autodrive gains (slow gain schedule)
-		public static final double autoDrivekP = 0.3;
+		//autodrive gains
+	public static final double autoDrivekP = 0.4;
 		public static final double autoDrivekI = 0.0;
-		public static final double autoDrivekD = 0.0;
+		public static final double autoDrivekD = 0.01;
 
 		public static final double autoDrivekP_angle = 0.3;
 		public static final double autoDrivekI_angle = 0.0;
 		public static final double autoDrivekD_angle = 0.0;
 
-		public static final double autoDriveAngleTolerance = 0.1; // radians
-		public static final double autoDrivePositionTolerance = 0.1; // meters
+		public static final double highAutoDriveAngleTolerance = 0.1; // radians
+		public static final double highAutoDrivePositionTolerance = 0.3; // meters
+		public static final double lowAutoDriveAngleTolerance = 0.06; // radians
+		public static final double lowAutoDrivePositionTolerance = 0.05; // meters
 
 		public static final double tandemTranslation_deadband = 0.008;
 		public static final double tandemAngle_deadband = 0.005;
 
-		public static final double maxAutoDriveSpeedMetersPerSecond = 1.0; // m/s
+		public static final double maxAutoDriveSpeedMetersPerSecond = 0.2; // m/s
 		public static final double maxAutoDriveAngularSpeedRadiansPerSecond = 2.0; // rad/s
 
 	}
@@ -373,13 +375,13 @@ public final class Constants {
 				new PodConfig(5, 9, 22, 0.7168, new Translation2d(-wheelBase / 2, trackWidth / 2)), // FR
 				new PodConfig(10, 6, 21, 0.5891, new Translation2d(wheelBase / 2, trackWidth / 2)), // BR
 				new PodConfig(7, 11, 23, 0.2756, new Translation2d(-wheelBase / 2, -trackWidth / 2)) // FL - +
-			}, 100.0, 0.0, 0.5, 0.1, 2.66, 0.0),
+			}, 50.0, 0.0, 0.5, 0.1, 2.66, 0.0),
 			new SingleRobotConfig(new PodConfig[] { // second (green) robot
 				new PodConfig(8, 4, 24, 0.0591, new Translation2d(wheelBase / 2, -trackWidth / 2)), // BL
 				new PodConfig(5, 9, 22, 0.7627, new Translation2d(-wheelBase / 2, trackWidth / 2)), // FR
 				new PodConfig(10, 6, 21, -0.6096, new Translation2d(wheelBase / 2, trackWidth / 2)), // BR
 				new PodConfig(7, 11, 23, 0.3977, new Translation2d(-wheelBase / 2, -trackWidth / 2)) // FL - +
-			}, 100.0, 0.0, 0.5, 0.1, 2.66, 0.0)
+			}, 50.0, 0.0, 0.5, 0.1, 2.66, 0.0)
 		};
 
 

@@ -70,13 +70,13 @@ public class Swerve extends SubsystemBase {
 	StructArrayPublisher<SwerveModuleState> SMSPublisher;
 	StructPublisher<Pose2d> PosePublisher;
 	StructPublisher<Pose2d> VisionPosePublisher;
+	StructPublisher<Pose2d> OdoPosePublisher;
 	StructPublisher<ChassisSpeeds> ChassisSpeedsPublisher;
 	DoubleEntry azimuthkPSub, azimuthkISub, azimuthkDSub, azimuthkSSub, azimuthkVSub, azimuthkASub;
 
 
 	
 	public Swerve(int robot) {
-		System.out.println("swerve called");
 		SingleRobotConfig config = RobotConfig.robotConfigs[robot];
 		drivetrainKinematics = config.drivetrainKinematics;
 		gyro = new Pigeon2(RobotConfig.pigeonID);
@@ -111,6 +111,7 @@ public class Swerve extends SubsystemBase {
 		VisionPosePublisher = NetworkTableInstance.getDefault().getTable(tab).getStructTopic("VisionPose", Pose2d.struct).publish();
 		ChassisSpeedsPublisher = NetworkTableInstance.getDefault().getTable(tab).getStructTopic("ChassisSpeeds", ChassisSpeeds.struct)
 				.publish();
+		OdoPosePublisher = NetworkTableInstance.getDefault().getTable(tab).getStructTopic("OdoPose", Pose2d.struct).publish();
 
 		// initialize PID subscribers
 		if(Constants.tuningMode) {
@@ -145,6 +146,7 @@ public class Swerve extends SubsystemBase {
 		SMSPublisher.set(getModuleStates());
 		// if (Constants.IS_MASTER) {
 		PosePublisher.set(getPose());
+		OdoPosePublisher.set(poseEstimator.getOdometry());
 
 		// } else {
 		// 	PosePublisher.set(new Pose2d());

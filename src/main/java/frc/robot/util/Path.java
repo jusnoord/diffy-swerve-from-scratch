@@ -16,6 +16,8 @@ public class Path {
     private double lookAhead;
     private final double defaultSpeed;
     private int currentWaypointIndex = 0;
+    private final double rotationalSpeedCap = 15; // degrees per second
+    private boolean isPathComplete = false;
 
     public Path(List<Pose2d> waypoints, double defaultSpeed, double lookAhead) {
         this.waypoints = waypoints;
@@ -119,6 +121,17 @@ public class Path {
         double dx = nextWaypoint.getX() - currentPose.getX();
         double dy = nextWaypoint.getY() - currentPose.getY();
         double angle = Math.atan2(dy, dx);
-        return new Pose2d(speed * Math.cos(angle), speed * Math.sin(angle), Rotation2d.fromDegrees(angleController.calculate(currentPose.getRotation().getDegrees(), nextWaypoint.getRotation().getDegrees())));
+        double angularSpeed = -angleController.calculate(currentPose.getRotation().getDegrees(), nextWaypoint.getRotation().getDegrees());
+        if (Math.abs(angularSpeed) > rotationalSpeedCap) {
+            angularSpeed = Math.copySign(rotationalSpeedCap, angularSpeed);
+        }
+
+        isPathComplete = currentWaypointIndex >= waypoints.size() - 1 && distance < lookAhead / 4;
+
+        return new Pose2d(speed * Math.cos(angle), speed * Math.sin(angle), Rotation2d.fromDegrees(angularSpeed));
+    }
+
+    public boolean isFinished() {
+        return isPathComplete;
     }
 }

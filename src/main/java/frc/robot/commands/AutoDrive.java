@@ -15,6 +15,7 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
+import edu.wpi.first.networktables.BooleanPublisher;
 import edu.wpi.first.networktables.DoubleEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructEntry;
@@ -39,6 +40,8 @@ public class AutoDrive extends Command {
     private StructSubscriber<Pose2d> masterPoseSubscriber;
 
     private StructPublisher<Pose2d> robotSpeedPublisher;
+
+    private BooleanPublisher atTargetPublisher;
     private boolean PIDAtTolerance = false;
 
 
@@ -55,35 +58,29 @@ public class AutoDrive extends Command {
     private final PIDController xPID;
     private final PIDController yPID;
 
-    public AutoDrive(Swerve swerve, Supplier<Pose2d> targetPose, boolean slowGain) {
+    public AutoDrive(Swerve swerve, Supplier<Pose2d> targetPose, boolean lowAccuracy) {
         this.swerve = swerve;
         this.targetPose = targetPose;
         masterPoseSubscriber = NetworkTableInstance.getDefault().getTable(Constants.RobotType.master.toString()).getStructTopic("RobotPose", Pose2d.struct).subscribe(new Pose2d());
         robotSpeedPublisher = NetworkTableInstance.getDefault().getTable(Constants.currentRobot.toString()).getStructTopic("desired tandem speed", Pose2d.struct).publish();
+        atTargetPublisher = NetworkTableInstance.getDefault().getTable(Constants.currentRobot.toString()).getBooleanTopic("autodrive at target").publish();
         
         double kP, kI, kD, anglekP, anglekI, anglekD, angleTolerance, positionTolerance;
-        if(slowGain) {
-            kP = RobotConstants.autoDrivekP;
-            kI = RobotConstants.autoDrivekI;
-            kD = RobotConstants.autoDrivekD;
 
-            anglekP = RobotConstants.autoDrivekP_angle;
-            anglekI = RobotConstants.autoDrivekI_angle;
-            anglekD = RobotConstants.autoDrivekD_angle;
-            
-            angleTolerance = RobotConstants.autoDriveAngleTolerance;
-            positionTolerance = RobotConstants.autoDrivePositionTolerance;
-        } else {
-            kP = RobotConstants.tandemkP;
-            kI = RobotConstants.tandemkI;
-            kD = RobotConstants.tandemkD;
+        kP = RobotConstants.autoDrivekP;
+        kI = RobotConstants.autoDrivekI;
+        kD = RobotConstants.autoDrivekD;
 
-            anglekP = RobotConstants.tandemkP_angle;
-            anglekI = RobotConstants.tandemkI_angle;
-            anglekD = RobotConstants.tandemkD_angle;
-        
-            angleTolerance = RobotConstants.tandemAngleTolerance;
-            positionTolerance = RobotConstants.tandemPositionTolerance;
+        anglekP = RobotConstants.autoDrivekP_angle;
+        anglekI = RobotConstants.autoDrivekI_angle;
+        anglekD = RobotConstants.autoDrivekD_angle;
+
+        if(lowAccuracy) {
+            angleTolerance = RobotConstants.highAutoDriveAngleTolerance;
+            positionTolerance = RobotConstants.highAutoDrivePositionTolerance;
+        } else {        
+            angleTolerance = RobotConstants.lowAutoDriveAngleTolerance;
+            positionTolerance = RobotConstants.lowAutoDrivePositionTolerance;
         }
 
         xPID = new PIDController(kP, kI, kD);
@@ -104,6 +101,7 @@ public class AutoDrive extends Command {
 
         //initialize telemetry
         targetPosePublisher = NetworkTableInstance.getDefault().getTable(Constants.currentRobot.toString()).getStructTopic("targetPose", Pose2d.struct).getEntry(new Pose2d());
+        atTargetPublisher.accept(false);
     }
 
     @Override
@@ -140,6 +138,7 @@ public class AutoDrive extends Command {
     @Override
     public void end(boolean interrupted) {
         System.out.println("AutoDrive ended");
+        atTargetPublisher.accept(true);
         swerve.stop();
     }
 

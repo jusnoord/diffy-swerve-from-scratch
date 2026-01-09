@@ -78,7 +78,7 @@ public class RobotContainer {
 		new Trigger(inputGetter::getXButton).onTrue(new SyncOffsets(swerve).withTimeout(1));
 		new Trigger(inputGetter::getLeftBumper).whileTrue(new TandemDrive(swerve, inputGetter::getJoystickVelocity));
 		new Trigger(inputGetter::getRightBumper).whileTrue(new IndependentDrive(swerve, () -> inputGetter.getLeftJoystick(), () -> inputGetter.getRightJoystick()));
-		new Trigger(inputGetter::getYButton).onTrue(new FollowPath(swerve, new Path(PathConstants.wayPoints, PathConstants.defaultSpeed, PathConstants.lookAhead)));
+		new Trigger(inputGetter::getYButton).whileTrue(new DemoDrive(swerve, wingPoseEstimator, inputGetter));
 		
 		// swerve.setDefaultCommand(new DemoDrive(swerve, wingPoseEstimator, inputGetter));
 
