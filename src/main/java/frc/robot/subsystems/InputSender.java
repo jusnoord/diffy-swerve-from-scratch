@@ -24,19 +24,33 @@ import frc.robot.commands.IndependentDrive;
 import frc.robot.util.InputInterface;
 
 /**subsystem that runs on the master to send inputs to NT */
-public class InputSender extends SubsystemBase {
+public class InputSender {
 	/** Creates a new SendInputs. */
 	private XboxController controller;
 	private SlewRateLimiter xLimiter = new SlewRateLimiter(1.0);
 	private SlewRateLimiter yLimiter = new SlewRateLimiter(1.0);
 	private SlewRateLimiter rotationalLimiter = new SlewRateLimiter(3.0);
 
+	private final Thread updateThread;
+
 
 	public InputSender() {
-		controller = new XboxController(JoystickConstants.driverPort);		
+		controller = new XboxController(JoystickConstants.driverPort);
+		
+		updateThread = new Thread(() -> {
+			while (true) {
+				periodic();
+				try {
+					Thread.sleep(5);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+		});
+		updateThread.setDaemon(true);
+		updateThread.start();
 	}
 
-	@Override
 	public void periodic() {
 		if (Constants.IS_MASTER) {
 			InputInterface.updateInputs(controller, DriverStation.isEnabled(), Timer.getFPGATimestamp(), grabJoystickVelocity());

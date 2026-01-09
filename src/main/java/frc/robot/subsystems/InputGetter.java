@@ -18,22 +18,35 @@ import frc.robot.util.InputInterface.Inputs;
 
 /**subsystem that runs on both robots to grab class from NT. 
  * Also handles enable/disable on slave */
-public class InputGetter extends SubsystemBase {
+public class InputGetter {
 	private Inputs inputs;
     private DSSim dsSim;
     private boolean lastEnableStatus = false;
     private double lastTimestamp = 0;
+    private final Thread updateThread;
 
     public InputGetter() {
     	inputs = InputInterface.grabInputs();
-
         if(!Constants.IS_MASTER) {
             dsSim = new DSSim();
             dsSim.init();
         }
+
+        updateThread = new Thread(() -> {
+            while (true) {
+                periodic();
+                try {
+                    Thread.sleep(5);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        updateThread.setDaemon(true);
+        updateThread.start();
+
     }
 
-    @Override
     public void periodic() {
     	inputs = InputInterface.grabInputs();
 

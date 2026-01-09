@@ -154,9 +154,14 @@ public class Path {
             angularSpeed = Math.copySign(rotationalSpeedCap, angularSpeed);
         }
 
-        isPathComplete = currentWaypointIndex >= waypoints.size() - 1 && distance < lookAhead / 4;
+        isPathComplete = currentWaypointIndex >= waypoints.size() - 1 && distance < lookAhead;
 
         return new Pose2d(speed * Math.cos(angle), speed * Math.sin(angle), Rotation2d.fromDegrees(angularSpeed));
+    }
+
+    public void reset() {
+        currentWaypointIndex = 0;
+        isPathComplete = false;
     }
 
     public boolean isFinished() {
